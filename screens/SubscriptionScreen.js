@@ -1,191 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 export default function SubscriptionScreen({ navigation }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
 
-  const handleSelectStandard = () => {
-    setSelectedPlan('standard');
-  };
-
-  const handleSelectPremium = () => {
-    setSelectedPlan('premium');
-  };
-
   const handleContinue = () => {
-    if (selectedPlan === 'standard' || selectedPlan === 'premium') {
-      // User selected a plan - navigate back to welcome or handle subscription
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }],
-      });
-    }
+    if (!selectedPlan) return;
+
+    navigation.navigate("Welcome", {
+      premium: selectedPlan === "premium",
+    });
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Choose Your Plan</Text>
-        </View>
+        <Text style={styles.title}>Choose Your Plan</Text>
 
-        <View style={styles.plansContainer}>
-          <TouchableOpacity
+        {/* STANDARD */}
+        <TouchableOpacity
+          style={[
+            styles.planCard,
+            selectedPlan === "standard" && styles.planCardSelected,
+          ]}
+          onPress={() => setSelectedPlan("standard")}
+        >
+          <Text
             style={[
-              styles.planCard,
-              selectedPlan === 'standard' && styles.planCardSelected,
+              styles.planName,
+              selectedPlan === "standard" && styles.planNameSelected,
             ]}
-            onPress={handleSelectStandard}
-            activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.planName,
-                selectedPlan === 'standard' && styles.planNameSelected,
-              ]}
-            >
-              STANDARD
-            </Text>
-            <Text
-              style={[
-                styles.planPrice,
-                selectedPlan === 'standard' && styles.planPriceSelected,
-              ]}
-            >
-              $9.99/month
-            </Text>
-            <View style={styles.featuresContainer}>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'standard' && styles.featureSelected,
-                ]}
-              >
-                • Makeup & skincare guidance
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'standard' && styles.featureSelected,
-                ]}
-              >
-                • Brand-free product recommendations
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'standard' && styles.featureSelected,
-                ]}
-              >
-                • Progress tracking
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'standard' && styles.featureSelected,
-                ]}
-              >
-                • Saved history
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            STANDARD
+          </Text>
+          <Text
             style={[
-              styles.planCard,
-              selectedPlan === 'premium' && styles.planCardSelected,
+              styles.planPrice,
+              selectedPlan === "standard" && styles.planPriceSelected,
             ]}
-            onPress={handleSelectPremium}
-            activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.planName,
-                selectedPlan === 'premium' && styles.planNameSelected,
-              ]}
-            >
-              PREMIUM
-            </Text>
-            <Text
-              style={[
-                styles.planPrice,
-                selectedPlan === 'premium' && styles.planPriceSelected,
-              ]}
-            >
-              $19.99/month
-            </Text>
-            <View style={styles.featuresContainer}>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Everything in Standard
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Wrapped (monthly / seasonal insights)
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Advanced analysis depth
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Personalized tone & color refinement
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Priority AI processing
-              </Text>
-              <Text
-                style={[
-                  styles.feature,
-                  selectedPlan === 'premium' && styles.featureSelected,
-                ]}
-              >
-                • Early access to future physical product collaborations
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            $9.99 / month
+          </Text>
+          <Text style={styles.feature}>• Makeup & skincare guidance</Text>
+          <Text style={styles.feature}>• Brand-free recommendations</Text>
+          <Text style={styles.feature}>• Progress tracking</Text>
+          <Text style={styles.feature}>• Saved history</Text>
+        </TouchableOpacity>
 
+        {/* PREMIUM */}
+        <TouchableOpacity
+          style={[
+            styles.planCard,
+            selectedPlan === "premium" && styles.planCardSelected,
+          ]}
+          onPress={() => setSelectedPlan("premium")}
+        >
+          <Text
+            style={[
+              styles.planName,
+              selectedPlan === "premium" && styles.planNameSelected,
+            ]}
+          >
+            PREMIUM
+          </Text>
+          <Text
+            style={[
+              styles.planPrice,
+              selectedPlan === "premium" && styles.planPriceSelected,
+            ]}
+          >
+            $19.99 / month
+          </Text>
+          <Text style={styles.feature}>• Everything in Standard</Text>
+          <Text style={styles.feature}>• Wrapped insights</Text>
+          <Text style={styles.feature}>• Advanced analysis depth</Text>
+          <Text style={styles.feature}>• Tone & color refinement</Text>
+          <Text style={styles.feature}>• Priority AI processing</Text>
+          <Text style={styles.feature}>• Early access features</Text>
+        </TouchableOpacity>
+
+        {/* CONTINUE BUTTON */}
         <TouchableOpacity
           style={[
             styles.continueButton,
-            !selectedPlan && styles.continueButtonDisabled,
+            !selectedPlan && styles.continueDisabled,
           ]}
-          onPress={handleContinue}
           disabled={!selectedPlan}
-          activeOpacity={0.7}
+          onPress={handleContinue}
         >
           <Text style={styles.continueButtonText}>CONTINUE</Text>
         </TouchableOpacity>
@@ -199,94 +112,36 @@ export default function SubscriptionScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 40,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: { padding: 24, paddingTop: 60 },
   title: {
     fontSize: 24,
-    fontWeight: '300',
-    letterSpacing: 4,
-    color: '#000000',
-    textAlign: 'center',
-  },
-  plansContainer: {
+    fontWeight: "300",
+    letterSpacing: 3,
+    textAlign: "center",
     marginBottom: 40,
   },
   planCard: {
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: "#000",
     padding: 24,
     marginBottom: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#fff",
   },
-  planCardSelected: {
-    backgroundColor: '#000000',
-  },
-  planName: {
-    fontSize: 18,
-    fontWeight: '400',
-    letterSpacing: 3,
-    color: '#000000',
-    marginBottom: 8,
-  },
-  planNameSelected: {
-    color: '#FFFFFF',
-  },
-  planPrice: {
-    fontSize: 20,
-    fontWeight: '400',
-    letterSpacing: 1,
-    color: '#000000',
-    marginBottom: 16,
-  },
-  planPriceSelected: {
-    color: '#FFFFFF',
-  },
-  featuresContainer: {
-    marginTop: 8,
-  },
-  feature: {
-    fontSize: 13,
-    fontWeight: '300',
-    letterSpacing: 0.5,
-    color: '#000000',
-    marginBottom: 6,
-  },
-  featureSelected: {
-    color: '#FFFFFF',
-  },
+  planCardSelected: { backgroundColor: "#000" },
+  planName: { fontSize: 18, letterSpacing: 2, marginBottom: 6, color: "#000" },
+  planNameSelected: { color: "#fff" },
+  planPrice: { fontSize: 20, marginBottom: 12 },
+  planPriceSelected: { color: "#fff" },
+  feature: { fontSize: 13, marginVertical: 3 },
   continueButton: {
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#000000',
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-    backgroundColor: '#FFFFFF',
+    borderColor: "#000",
+    alignItems: "center",
+    marginTop: 30,
   },
-  continueButtonDisabled: {
-    opacity: 0.3,
-  },
-  continueButtonText: {
-    fontSize: 14,
-    fontWeight: '400',
-    letterSpacing: 3,
-    color: '#000000',
-  },
-  disclaimer: {
-    fontSize: 11,
-    fontWeight: '300',
-    letterSpacing: 0.5,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+  continueDisabled: { opacity: 0.3 },
+  continueButtonText: { letterSpacing: 3 },
+  disclaimer: { marginTop: 20, textAlign: "center", fontSize: 12 },
 });
