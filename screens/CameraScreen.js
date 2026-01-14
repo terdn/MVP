@@ -21,10 +21,9 @@ export default function CameraScreen({ navigation }) {
     if (!cameraRef.current) return;
 
     setLoading(true);
+
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
-      });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
 
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
