@@ -11,23 +11,22 @@ export default function CameraScreen({ navigation }) {
   const SERVER_URL = "https://mvp-production-3039.up.railway.app";
 
   useEffect(() => {
-    Camera.requestCameraPermissionsAsync().then(({ status }) => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-    });
+    })();
   }, []);
 
   const handleTakePicture = async () => {
     if (!cameraRef.current) return;
 
     setLoading(true);
-
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.7,
-        base64: false,
       });
 
-      const manipulatedPhoto = await ImageManipulator.manipulateAsync(
+      const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
         [{ resize: { width: 900 } }],
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
@@ -35,7 +34,7 @@ export default function CameraScreen({ navigation }) {
 
       const formData = new FormData();
       formData.append("photo", {
-        uri: manipulatedPhoto.uri,
+        uri: manipulated.uri,
         name: "photo.jpg",
         type: "image/jpeg",
       });
@@ -64,24 +63,29 @@ export default function CameraScreen({ navigation }) {
   if (!hasPermission) return <Text>No access to camera</Text>;
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
       <Camera
-        style={styles.camera}
+        style={{ flex: 1 }}
         ref={cameraRef}
-        type={Camera.Constants.Type.front}
         ratio="16:9"
       />
 
-      <TouchableOpacity style={styles.captureButton} onPress={handleTakePicture}>
-        {loading ? <ActivityIndicator color="#fff" size="large" /> : <View style={styles.innerButton} />}
+      <TouchableOpacity
+        style={styles.captureButton}
+        onPress={handleTakePicture}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator size="large" color="#fff" />
+        ) : (
+          <View style={styles.innerCircle} />
+        )}
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  camera: { flex: 1 },
   captureButton: {
     position: "absolute",
     bottom: 40,
@@ -94,7 +98,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  innerButton: {
+  innerCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
