@@ -1,88 +1,94 @@
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// ⭐ GÜVENLİK AYARLARI İÇİN EK KÜTÜPHANELER
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 const app = express();
 
-// Uploads klasörü kontrolü
+// Upload klasörü kontrolü
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 
 const upload = multer({ dest: 'uploads/' });
 
-// ⭐ KRİTİK DÜZELTME: Railway Variable ismin 'GEMINI_API_KEY'
+// Railway'deki değişken ismin
 const apiKey = process.env.GEMINI_API_KEY;
 
+// API Anahtarı Kontrolü (Loglarda görmek için)
 if (!apiKey) {
-  console.error("❌ CRITICAL ERROR: GEMINI_API_KEY is missing in Railway Variables!");
+  console.error("❌ CRITICAL: GEMINI_API_KEY is missing!");
 } else {
-  console.log("✅ GEMINI_API_KEY detected successfully.");
+  console.log("✅ GEMINI_API_KEY detected.");
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
 app.get('/', (req, res) => {
-  res.send('ERDN Cosmetics AI Server is Active & Ready 🚀');
+  res.send('ERDN Cosmetics Server is Active & Secure 🚀');
 });
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 Analysis request received...");
+    console.log("📸 New analysis request received...");
 
     if (!req.file) {
-      console.log("❌ No photo received.");
+      console.log("❌ No photo.");
       return res.status(400).json({ analysis: "Error: No photo uploaded." });
     }
 
-    // Abonelik Tipi Kontrolü
-    // Uygulama 'true' string olarak gönderir
+    // Kullanıcı Tipi (Uygulamadan gelir)
     const isPremium = req.body.premium === 'true';
     console.log(`💎 User Tier: ${isPremium ? 'PREMIUM ($19.99)' : 'STANDARD ($9.99)'}`);
 
-    // Görüntü İşleme
     const imagePath = req.file.path;
     const imageData = fs.readFileSync(imagePath);
     const base64Image = imageData.toString('base64');
 
-    // Model
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // ⭐ PROMPT MÜHENDİSLİĞİ (CEO VİZYONU - GÜNCELLENDİ)
+    // ⭐ GÜVENLİK DUVARLARINI KALDIR (Boş cevap sorununu çözer)
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+
+    // ⭐ CEO VİZYONU: PROMPT MÜHENDİSLİĞİ
     let prompt = "";
 
     if (isPremium) {
       // --- PREMIUM ($19.99) ---
-      // Lüks, Detaylı, Marka, Undertone
+      // Hedef: Lüks, Detaylı, Makyaj & Undertone
       prompt = `You are an elite dermatologist and celebrity makeup artist for ERDN Cosmetics. Analyze this face strictly in English.
-      Provide a highly detailed, structured report:
       
-      1. **SKIN ANALYSIS**: Identify skin type (Oily/Dry/Combo) and specific conditions (Acne, Rosacea, texture).
+      Provide a highly detailed, structured report:
+      1. **SKIN ANALYSIS**: Identify skin type (Oily/Dry/Combo) and specific conditions (Acne, texture, etc.).
       2. **UNDERTONE & SHADE**: Determine the exact undertone (Cool/Warm/Neutral) and recommend foundation shades (e.g., Ivory, Beige, Espresso).
-      3. **MAKEUP PALETTE**: Suggest specific lipstick colors (e.g., Brick Red, Nude Pink) and blush tones that suit this skin tone perfectly.
+      3. **MAKEUP PALETTE**: Suggest specific lipstick colors (e.g., Brick Red, Nude Pink) and blush tones that suit this skin tone.
       4. **LUXURY ROUTINE**: A 3-step high-end skincare routine with specific active ingredients.
       
       Tone: Professional, sophisticated, direct.`;
     } else {
-      // --- STANDARD ($9.99) - YENİ "ŞIK & BASİT" FORMAT ---
-      // Marka YOK. Yüzde YOK. Sadece "Ürün Tipi" ve "İçerik Betimlemesi".
+      // --- STANDARD ($9.99) ---
+      // Hedef: Markasız, Yüzdesiz, Şık ve Basit (Chic & Simple)
       prompt = `You are a helpful skincare consultant. Analyze this face in English.
       
-      First, identify the Skin Type (e.g., Oily, Dry).
+      First, identify the **Skin Type** (e.g., Oily, Dry).
       
-      Then, recommend 3 to 5 essential product types based on the analysis.
-      For each recommendation, describe the product type and the key ingredient simply and elegantly.
+      Then, recommend **3 to 5 essential product types** based on the analysis.
       
-      Rules:
-      - NO brand names.
-      - NO complex percentages.
-      - Format: "Product Type" - "Description"
+      **RULES FOR RECOMMENDATIONS:**
+      - **NO BRANDS.** Do not mention any brand names.
+      - **NO PERCENTAGES.** Do not use complex numbers.
+      - **FORMAT:** "Product Type" - "Description with Key Ingredient"
       
-      Examples of desired style:
+      **Examples of desired style:**
       - "Water-based Moisturizer" - "Look for a light texture enriched with Hyaluronic Acid."
       - "Gentle Cream Cleanser" - "A soothing formula containing Ceramides."
       - "Hand Cream" - "A rich formula focused on Vitamin E."
@@ -90,26 +96,21 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       Tone: Chic, simple, and clear.`;
     }
 
-    // AI İsteği
-    console.log("🤖 Sending to Gemini AI...");
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: "image/jpeg",
-        },
-      },
-    ]);
+    console.log("🤖 Sending to Gemini (Safety Filters: OFF)...");
+    
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
+      safetySettings: safetySettings,
+    });
 
     const response = await result.response;
     const text = response.text();
     
-    console.log("✅ Analysis generated successfully.");
+    console.log("✅ Analysis success!");
 
-    // GİZLİLİK: Fotoğrafı sil
+    // Temizlik
     fs.unlinkSync(imagePath);
-    console.log("🗑️ Photo deleted from server.");
+    console.log("🗑️ Photo deleted.");
 
     res.json({
       analysis: text,
@@ -118,12 +119,10 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
 
   } catch (error) {
     console.error("🔥 SERVER ERROR:", error);
-    // Hata olsa bile dosyayı temizle
-    if (req.file && req.file.path) {
-      try { fs.unlinkSync(req.file.path); } catch(e) {}
-    }
+    if (req.file) try { fs.unlinkSync(req.file.path) } catch(e) {};
+    
     res.status(500).json({ 
-      analysis: "Server Error: Could not generate analysis. Please try again." 
+      analysis: `Server Error: ${error.message}. Please try again.` 
     });
   }
 });
