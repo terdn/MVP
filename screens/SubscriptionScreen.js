@@ -10,13 +10,13 @@ export default function SubscriptionScreen({ navigation }) {
         
         <Text style={styles.headerTitle}>ERDN Cosmetics</Text>
 
-        {/* STANDARD MEMBERSHIP */}
+        {/* STANDARD MEMBERSHIP - $4.99 */}
         <View style={styles.box}>
           <Text style={styles.plan}>STANDARD MEMBERSHIP</Text>
-          <Text style={styles.price}>$9.99</Text>
+          <Text style={styles.price}>$4.99</Text>
 
           <Text style={styles.feature}>• Basic AI Skin Analysis</Text>
-          <Text style={styles.feature}>• Skin Type Detection</Text>
+          <Text style={styles.feature}>• Skin Type & Undertone Detection</Text>
           <Text style={styles.feature}>• Routine Suggestions</Text>
 
           <TouchableOpacity
@@ -27,13 +27,12 @@ export default function SubscriptionScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* PREMIUM MEMBERSHIP - CEO SEÇİMİ */}
+        {/* PREMIUM MEMBERSHIP - $9.99 */}
         <View style={[styles.box, styles.premiumBox]}>
           <Text style={[styles.plan, {color: '#fff'}]}>PREMIUM MEMBERSHIP</Text>
-          <Text style={[styles.price, {color: '#fff'}]}>$19.99</Text>
+          <Text style={[styles.price, {color: '#fff'}]}>$9.99</Text>
 
           <Text style={[styles.feature, {color: '#ddd'}]}>• Everything in Standard</Text>
-          <Text style={[styles.feature, {color: '#ddd'}]}>• Undertone Analysis</Text>
           <Text style={[styles.feature, {color: '#ddd'}]}>• Shade Match (Foundation/Concealer)</Text>
           <Text style={[styles.feature, {color: '#ddd'}]}>• Color Recommendations</Text>
           <Text style={[styles.feature, {color: '#ddd'}]}>• Detailed Premium Report</Text>
