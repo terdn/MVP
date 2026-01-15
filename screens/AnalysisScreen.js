@@ -2,11 +2,15 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 
 export default function AnalysisScreen({ route, navigation }) {
-  // Veriyi al (Artık JSON formatında geliyor)
   const { analysis, premium } = route.params; 
   
-  // Eğer hata varsa veya veri düzgün değilse basit göster
-  const data = typeof analysis === 'string' ? JSON.parse(analysis) : analysis;
+  // Veriyi kutulara yerleştirmek için hazırlıyoruz
+  let data = {};
+  try {
+    data = typeof analysis === 'object' ? analysis : JSON.parse(analysis);
+  } catch (e) {
+    data = { skin_profile: { concern: "Analiz yüklenirken hata oluştu." } };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -15,7 +19,7 @@ export default function AnalysisScreen({ route, navigation }) {
         {/* BAŞLIK */}
         <Text style={styles.headerTitle}>ERDN ANALYSIS</Text>
 
-        {/* 1. KUTU: SKIN PROFILE */}
+        {/* 1. KUTU: CİLT PROFİLİ (Kalın Çizgili) */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>SKIN PROFILE</Text>
           <View style={styles.row}>
@@ -30,19 +34,19 @@ export default function AnalysisScreen({ route, navigation }) {
           <Text style={styles.concern}>{data.skin_profile?.concern}</Text>
         </View>
 
-        {/* 2. KUTU: SKIN CARE RECOMMENDATIONS */}
+        {/* 2. KUTU: ÖNERİLER */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>SKIN CARE RECOMMENDATIONS</Text>
+          <Text style={styles.cardTitle}>SKIN CARE</Text>
           {data.recommendations?.map((item, index) => (
             <Text key={index} style={styles.listItem}>• {item}</Text>
           ))}
         </View>
 
-        {/* 3. KUTU: THE ROUTINE (YAN YANA) */}
+        {/* 3. KUTU: RUTİN (GÜNDÜZ SOLDA - GECE SAĞDA) */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>THE ROUTINE</Text>
           <View style={styles.routineContainer}>
-            {/* SOL: DAY */}
+            {/* SOL TARAF */}
             <View style={styles.routineCol}>
               <Text style={styles.subTitle}>DAY ☀️</Text>
               {data.routine?.day?.map((step, i) => (
@@ -50,10 +54,10 @@ export default function AnalysisScreen({ route, navigation }) {
               ))}
             </View>
             
-            {/* DİKEY ÇİZGİ */}
+            {/* ORTA ÇİZGİ */}
             <View style={styles.verticalLine} />
 
-            {/* SAĞ: NIGHT */}
+            {/* SAĞ TARAF */}
             <View style={styles.routineCol}>
               <Text style={styles.subTitle}>NIGHT 🌙</Text>
               {data.routine?.night?.map((step, i) => (
@@ -63,10 +67,10 @@ export default function AnalysisScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* 4. KUTU: MAKE UP (SADECE PREMIUM) */}
+        {/* 4. KUTU: MAKYAJ (SADECE PREMIUM - ÖZEL BÖLÜM) */}
         {premium && data.makeup && (
-          <View style={[styles.card, { borderColor: '#000' }]}> 
-            <Text style={styles.cardTitle}>MAKE UP</Text>
+          <View style={[styles.card, { borderColor: '#000', borderWidth: 2.5 }]}> 
+            <Text style={styles.cardTitle}>MAKE UP STUDIO</Text>
             
             <Text style={styles.label}>Foundation:</Text>
             <Text style={styles.value}>{data.makeup.foundation}</Text>
@@ -82,7 +86,7 @@ export default function AnalysisScreen({ route, navigation }) {
         )}
 
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Welcome')}>
-          <Text style={styles.buttonText}>Finish</Text>
+          <Text style={styles.buttonText}>FINISH</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -95,44 +99,43 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingBottom: 50 },
   headerTitle: { fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 20, letterSpacing: 2 },
   
-  // KUTU TASARIMI (KALIN ÇİZGİLİ)
+  // KUTU TASARIMI (KALIN ÇİZGİLİ & ŞIK)
   card: {
-    borderWidth: 2, // İstediğin kalın çerçeve
-    borderColor: '#333',
+    borderWidth: 2, // Kalın çizgi
+    borderColor: '#222', 
     padding: 15,
     marginBottom: 20,
-    borderRadius: 0, // Keskin köşeler (Daha şık)
     backgroundColor: '#FAFAFA'
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#ccc',
     paddingBottom: 5
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  label: { fontWeight: '700', fontSize: 14 },
-  value: { fontSize: 14, flex: 1, textAlign: 'right', color: '#555' },
+  label: { fontWeight: '700', fontSize: 13 },
+  value: { fontSize: 13, flex: 1, textAlign: 'right', color: '#444' },
   separator: { height: 1, backgroundColor: '#eee', marginVertical: 8 },
-  concern: { fontStyle: 'italic', fontSize: 13, color: '#666' },
-  listItem: { fontSize: 14, marginBottom: 4, lineHeight: 20 },
+  concern: { fontStyle: 'italic', fontSize: 13, color: '#666', lineHeight: 18 },
+  listItem: { fontSize: 13, marginBottom: 4, lineHeight: 20 },
   
-  // RUTİN KUTUSU (YAN YANA)
+  // RUTİN BÖLMESİ
   routineContainer: { flexDirection: 'row' },
   routineCol: { flex: 1, paddingHorizontal: 5 },
-  verticalLine: { width: 1, backgroundColor: '#ccc', marginHorizontal: 5 },
-  subTitle: { fontWeight: 'bold', marginBottom: 5, textAlign: 'center', fontSize: 12 },
-  routineText: { fontSize: 11, marginBottom: 3, color: '#444' },
+  verticalLine: { width: 1, backgroundColor: '#888', marginHorizontal: 8 },
+  subTitle: { fontWeight: 'bold', marginBottom: 8, textAlign: 'center', fontSize: 12 },
+  routineText: { fontSize: 11, marginBottom: 4, color: '#333', lineHeight: 16 },
 
-  // MAKE UP ÖZEL
-  avoidBox: { marginTop: 15, backgroundColor: '#f0f0f0', padding: 8, borderRadius: 4 },
-  avoidLabel: { fontWeight: '700', fontSize: 12, color: '#555' },
-  avoidValue: { fontSize: 12, color: '#777' },
+  // MAKYAJ ÖZEL ALANI
+  avoidBox: { marginTop: 15, backgroundColor: '#eee', padding: 8 },
+  avoidLabel: { fontWeight: '700', fontSize: 12, color: '#333' },
+  avoidValue: { fontSize: 12, color: '#555' },
 
-  button: { backgroundColor: '#000', padding: 15, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  button: { backgroundColor: '#000', padding: 16, alignItems: 'center', marginTop: 10 },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 14, letterSpacing: 1 }
 });

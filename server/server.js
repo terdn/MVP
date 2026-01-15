@@ -6,12 +6,13 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
+// RAM Modu (Hız için)
 const upload = multer({ storage: multer.memoryStorage() });
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN AI Server (JSON Mode) 🚀'));
+app.get('/', (req, res) => res.send('ERDN AI Server (Visual Layout Fix) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
@@ -19,25 +20,26 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
 
     const isPremium = req.body.premium === 'true';
     const base64Image = req.file.buffer.toString('base64');
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    // ⭐ SADECE SAF VERİ İSTİYORUZ (JSON)
-    // Emojisiz, işaretsiz, sadece bilgi.
-    let prompt = `
-    You are a dermatological AI. Analyze the image.
-    Return ONLY a valid JSON object. Do NOT use Markdown. Do NOT use emojis.
     
+    // Model: Gemini 2.5 Flash
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash",
+        // ⭐ KİLİT NOKTA: Kutuların içine yerleşecek formatta veri istiyoruz.
+        generationConfig: { responseMimeType: "application/json" }
+    });
+
+    // Senin istediğin o premium kutuların içini dolduracak bilgiler:
+    let prompt = `
+    Analyze as a dermatologist. Output JSON for app UI rendering.
     Structure:
     {
       "skin_profile": {
         "type": "String (e.g. Oily)",
-        "undertone": "String (e.g. Cool Olive)",
+        "undertone": "String (e.g. Neutral)",
         "concern": "String (Short summary)"
       },
       "recommendations": [
-        "String (Product Type 1 - Key Ingredient)",
-        "String (Product Type 2 - Key Ingredient)",
-        "String (Product Type 3 - Key Ingredient)"
+        "String (Product 1)", "String (Product 2)", "String (Product 3)"
       ],
       "routine": {
         "day": ["Step 1", "Step 2", "Step 3"],
@@ -45,39 +47,49 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       }
     `;
 
-    // PREMIUM İSE MAKYAJI EKLE
     if (isPremium) {
       prompt += `,
       "makeup": {
-        "foundation": "String (Suggested shades)",
-        "lips": "String (Suggested colors)",
-        "gloss": "String (Suggested style)",
-        "avoid": "String (Colors to gently avoid)"
+        "foundation": "String (Shade advice)",
+        "lips": "String (Color advice)",
+        "gloss": "String (Style advice)",
+        "avoid": "String (What NOT to use - be polite)"
       }
       `;
     }
 
-    prompt += `
-    }
-    Fill the data professionally. English only. No intros.
-    `;
+    prompt += `}`;
 
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+    
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }]
+      contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
+      safetySettings: safetySettings,
     });
 
-    let text = result.response.text();
-    
-    // Temizlik (Bazen ```json diye başlar, onu siliyoruz)
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const responseText = result.response.text();
+    // Temizlik
+    const cleanText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
 
-    res.json(JSON.parse(text));
+    res.json(cleanText); 
 
   } catch (error) {
-    console.error("HATA:", error);
-    res.status(500).json({ error: "Analysis failed" });
+    console.error("🔥 HATA:", error);
+    // Hata olsa bile çökmesin diye boş şablon dönüyoruz
+    res.json(JSON.stringify({ 
+        skin_profile: { type: "Error", undertone: "-", concern: "Server Busy" },
+        recommendations: [],
+        routine: { day: [], night: [] }
+    }));
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
