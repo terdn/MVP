@@ -6,13 +6,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-// RAM Modu (Hız için)
 const upload = multer({ storage: multer.memoryStorage() });
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN AI Server (Visual Layout Fix) 🚀'));
+app.get('/', (req, res) => res.send('ERDN AI Server (Master Prompt) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
@@ -24,36 +23,47 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     // Model: Gemini 2.5 Flash
     const model = genAI.getGenerativeModel({ 
         model: "gemini-2.5-flash",
-        // ⭐ KİLİT NOKTA: Kutuların içine yerleşecek formatta veri istiyoruz.
         generationConfig: { responseMimeType: "application/json" }
     });
 
-    // Senin istediğin o premium kutuların içini dolduracak bilgiler:
+    // ⭐ İŞTE SENİN İSTEDİĞİN DETAYLI "BEYİN" TALİMATLARI ⭐
     let prompt = `
-    Analyze as a dermatologist. Output JSON for app UI rendering.
-    Structure:
+    You are the Chief Dermatologist and Image Consultant for ERDN Cosmetics, a luxury AI beauty brand.
+    Analyze the user's face in the image strictly in English.
+
+    --- RULESET (DO NOT IGNORE) ---
+    1. **NO BRANDS:** Never mention specific brand names (like CeraVe, Ordinary etc.). Only recommend "Product Types" + "Key Ingredients".
+    2. **TONE:** Professional, chic, sophisticated, and concise. Avoid robotic greetings.
+    3. **DAY/NIGHT:** Split the routine logically. Day is for protection (SPF/Antioxidant), Night is for repair (Retinol/Acids/Hydration).
+    4. **MAKEUP (If requested):** Be extremely specific with colors (e.g. "Cool Mauve", "Soft Peach", "Deep Berry"). Not just "Red".
+    
+    --- OUTPUT FORMAT (JSON ONLY) ---
+    Return a pure JSON object with this exact structure:
     {
       "skin_profile": {
-        "type": "String (e.g. Oily)",
-        "undertone": "String (e.g. Neutral)",
-        "concern": "String (Short summary)"
+        "type": "Your skin type assessment (e.g. Combination-Oily)",
+        "undertone": "Your undertone assessment (e.g. Neutral-Warm)",
+        "concern": "One short sentence summarizing the main skin need."
       },
       "recommendations": [
-        "String (Product 1)", "String (Product 2)", "String (Product 3)"
+        "Product 1 Type - Key Ingredient (e.g. 'Gel Cleanser with Salicylic Acid')",
+        "Product 2 Type - Key Ingredient (e.g. 'Vitamin C Serum (10-15%)')",
+        "Product 3 Type - Key Ingredient (e.g. 'Lightweight Gel Moisturizer')"
       ],
       "routine": {
-        "day": ["Step 1", "Step 2", "Step 3"],
+        "day": ["Step 1", "Step 2", "Step 3 (Must end with SPF)"],
         "night": ["Step 1", "Step 2", "Step 3"]
       }
     `;
 
+    // PREMIUM ÖZEL MAKYAJ TALİMATI
     if (isPremium) {
       prompt += `,
       "makeup": {
-        "foundation": "String (Shade advice)",
-        "lips": "String (Color advice)",
-        "gloss": "String (Style advice)",
-        "avoid": "String (What NOT to use - be polite)"
+        "foundation": "Recommended finish and shade description (e.g. 'Matte finish, Golden-Beige')",
+        "lips": "Recommended specific shades (e.g. 'Terracotta or Nude Pink')",
+        "gloss": "Gloss style (e.g. 'High-shine clear or Shimmering Champagne')",
+        "avoid": "Colors that clash with their undertone (e.g. 'Avoid cool-toned fuchsias')"
       }
       `;
     }
@@ -73,18 +83,22 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     });
 
     const responseText = result.response.text();
-    // Temizlik
-    const cleanText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    // JSON TEMİZLEME (Garanti olsun)
+    const firstBrace = responseText.indexOf('{');
+    const lastBrace = responseText.lastIndexOf('}');
+    
+    let cleanText = responseText;
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanText = responseText.substring(firstBrace, lastBrace + 1);
+    }
 
     res.json(cleanText); 
 
   } catch (error) {
     console.error("🔥 HATA:", error);
-    // Hata olsa bile çökmesin diye boş şablon dönüyoruz
     res.json(JSON.stringify({ 
-        skin_profile: { type: "Error", undertone: "-", concern: "Server Busy" },
-        recommendations: [],
-        routine: { day: [], night: [] }
+        skin_profile: { type: "Server Error", undertone: "-", concern: "Lütfen tekrar deneyin." }
     }));
   }
 });
