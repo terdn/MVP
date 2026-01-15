@@ -9,7 +9,7 @@ export default function CameraScreen({ navigation, route }) {
   const cameraRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
-  const SERVER_URL = "https://mvp-production-3039.up.railway.app";
+  const SERVER_URL = "https://mvp-production-a77e.up.railway.app";
 
   useEffect(() => {
     if (permission && !permission.granted) {

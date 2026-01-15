@@ -1,52 +1,69 @@
 const express = require('express');
 const multer = require('multer');
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 const app = express();
 
-// RAM Modu (Hızlı)
+// ⭐ RAM MODU: Diske yazmak yok, hız var.
 const upload = multer({ storage: multer.memoryStorage() });
 
-app.get('/', (req, res) => res.send('ERDN Test Server Online 🚀'));
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) console.error("❌ HATA: API Key bulunamadı!");
+
+const genAI = new GoogleGenerativeAI(apiKey);
+
+app.get('/', (req, res) => res.send('ERDN AI Server Online (Production) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 TEST İSTEĞİ GELDİ!");
+    console.log("📸 FİNAL ANALİZ İSTEĞİ GELDİ...");
 
     if (!req.file) {
-      console.log("❌ Dosya yok.");
-      return res.status(400).json({ analysis: "Hata: Dosya sunucuya gelmedi." });
+      return res.status(400).json({ analysis: "Hata: Fotoğraf yok." });
     }
 
-    console.log(`✅ Dosya RAM'e alındı. Boyut: ${req.file.size} bytes`);
+    const isPremium = req.body.premium === 'true';
     
-    // --- YAPAY ZEKA FİŞİNİ ÇEKTİK (TEST İÇİN) ---
-    // Gemini'ye gitmiyoruz. Sadece bağlantıyı doğruluyoruz.
-    
-    const fakeAnalysis = `
-    🎉 BAĞLANTI BAŞARILI! (TEST MODU)
-    
-    CEO Taha Erdin, sistemin çalışıyor.
-    Şu an bu mesajı görüyorsan:
-    1. Telefonun fotoğrafı başarıyla gönderdi.
-    2. Sunucun dosyayı başarıyla aldı.
-    3. 502 Hatası çözüldü.
-    
-    Sorun "Gemini Kütüphanesi"ndeymiş. Şimdi bunu gördüysen, Gemini'yi tekrar bağlayacağız.
-    `;
+    // RAM'den okuma (Saniyeler sürer)
+    const base64Image = req.file.buffer.toString('base64');
+    console.log(`⚡ Görsel işleniyor (${(req.file.size / 1024).toFixed(2)} KB)...`);
 
-    console.log("✅ Test cevabı gönderiliyor...");
-    
-    // Gecikme simülasyonu (1 saniye)
-    await new Promise(r => setTimeout(r, 1000));
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    res.json({ analysis: fakeAnalysis, premium: true });
+    // Güvenlik Ayarları (Sansürsüz)
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+
+    let prompt = isPremium 
+      ? "You are an elite dermatologist. Analyze this face strictly in English. Provide: 1. Skin Type 2. Undertone 3. Foundation Shade 4. Product Recommendations." 
+      : "You are a skincare consultant. Analyze this face in English. Recommend 3 product types (No brands). Format: 'Product Type' - 'Key Ingredient'. Keep it chic.";
+
+    console.log("🤖 Gemini'ye soruluyor...");
+    
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
+      safetySettings: safetySettings,
+    });
+
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("✅ ANALİZ BAŞARILI!");
+    res.json({ analysis: text, premium: isPremium });
 
   } catch (error) {
-    console.error("🔥 TEST HATASI:", error);
-    res.json({ analysis: `Sunucu Hatası: ${error.message}` });
+    console.error("🔥 HATA:", error);
+    res.json({ 
+      analysis: `Sunucu Hatası: ${error.message}`, 
+      premium: false 
+    });
   }
 });
 
