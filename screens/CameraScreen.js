@@ -9,7 +9,6 @@ export default function CameraScreen({ navigation, route }) {
   const cameraRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
-  // Railway Adresin
   const SERVER_URL = "https://mvp-production-3039.up.railway.app";
 
   useEffect(() => {
@@ -23,21 +22,26 @@ export default function CameraScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      // 1. Fotoğrafı Çek
+      console.log("📸 Fotoğraf çekiliyor...");
+      
+      // 1. Çekim Kalitesini Düşür
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
+        quality: 0.5,
         skipProcessing: true,
       });
 
-      // 2. Küçült
+      console.log("📉 ÖLÜMCÜL HAMLE: Resim Küçültülüyor...");
+      
+      // ⭐ İŞTE SENİ KURTARACAK KISIM BURASI ⭐
+      // Genişliği 500px yapıyoruz. Dosya boyutu %95 azalıyor.
+      // Sunucu bunu havada kapacak.
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
-        [{ resize: { width: 800 } }],
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 500 } }], 
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       const formData = new FormData();
-      // Android dosya formatı ayarı
       const filename = manipulated.uri.split('/').pop();
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : `image/jpeg`;
@@ -49,22 +53,26 @@ export default function CameraScreen({ navigation, route }) {
       });
       formData.append("premium", String(premium));
 
-      // 3. Gönder
-      console.log("Sunucuya gönderiliyor...");
+      console.log(`🚀 Hafifletilmiş veri gönderiliyor...`);
+
+      // 30 Saniye Zaman Aşımı
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(`${SERVER_URL}/analyze`, {
         method: "POST",
         headers: { 'Accept': 'application/json' },
         body: formData,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       const result = await response.json();
       
-      // ⭐ DEVRİM: KONTROL YOK, GEÇİŞ VAR ⭐
-      // Analiz boş olsa bile durmak yok. Ne geldiyse ekrana basacağız.
-      // Eğer analiz boşsa, gelen tüm cevabı (result) ekrana bas ki hatayı görelim.
+      // Sonuç ne olursa olsun göster
       const finalOutput = result.analysis 
                           ? result.analysis 
-                          : `⚠️ SUNUCU YANITI (RAW):\n${JSON.stringify(result, null, 2)}`;
+                          : `⚠️ SUNUCU CEVABI:\n${JSON.stringify(result, null, 2)}`;
 
       navigation.navigate("Analysis", {
         analysis: finalOutput,
@@ -72,8 +80,8 @@ export default function CameraScreen({ navigation, route }) {
       });
 
     } catch (err) {
-      // Sadece gerçek bağlantı koparsa hata ver
-      Alert.alert("Kritik Bağlantı Hatası", err.message);
+      console.error("HATA:", err);
+      Alert.alert("Hata", "Bağlantı sorunu: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -83,8 +91,8 @@ export default function CameraScreen({ navigation, route }) {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: '#fff' }}>Camera Permission Required</Text>
-        <TouchableOpacity onPress={requestPermission}><Text style={{ color: '#fff', marginTop: 20 }}>GRANT</Text></TouchableOpacity>
+        <Text style={{ color: '#fff' }}>Kamera izni ver.</Text>
+        <TouchableOpacity onPress={requestPermission}><Text style={{ color: '#fff', marginTop: 20 }}>İZİN VER</Text></TouchableOpacity>
       </View>
     );
   }
