@@ -1,33 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera'; // ⭐ SDK 54 STANDARDI
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function CameraScreen({ navigation, route }) {
-
+  // Parametre yoksa varsayılan false
   const { premium } = route.params || { premium: false };
 
-  const [hasPermission, setHasPermission] = useState(null);
+  // ⭐ YENİ İZİN SİSTEMİ
+  const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
+  // Senin Railway Sunucun
   const SERVER_URL = "https://mvp-production-3039.up.railway.app";
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    if (permission && !permission.granted) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const handleTakePicture = async () => {
     if (!cameraRef.current) return;
 
     setLoading(true);
-
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      // ⭐ YENİ FOTOĞRAF ÇEKME METODU
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        skipProcessing: true, // Hızlandırır
+      });
 
+      // Fotoğrafı sıkıştır (Hızlı upload için)
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
         [{ resize: { width: 900 } }],
@@ -41,7 +46,8 @@ export default function CameraScreen({ navigation, route }) {
         type: "image/jpeg",
       });
 
-      formData.append("premium", premium);
+      // Premium bilgisini sunucuya iletiyoruz
+      formData.append("premium", String(premium));
 
       const response = await fetch(`${SERVER_URL}/analyze`, {
         method: "POST",
@@ -53,22 +59,39 @@ export default function CameraScreen({ navigation, route }) {
 
       navigation.navigate("Analysis", {
         analysis: result.analysis,
-        premium,
+        premium: premium,
       });
 
     } catch (err) {
       alert("Error: " + err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  if (hasPermission === null) return <View />;
-  if (!hasPermission) return <Text>No access to camera</Text>;
+  // İzinler yüklenirken siyah ekran
+  if (!permission) return <View style={{flex:1, backgroundColor:'#000'}} />;
+
+  // İzin verilmediyse uyarı
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: '#fff', marginBottom: 20 }}>Camera access is required for analysis.</Text>
+        <TouchableOpacity onPress={requestPermission} style={styles.grantButton}>
+          <Text style={{ color: '#000', fontWeight: 'bold' }}>GRANT PERMISSION</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <Camera style={{ flex: 1 }} ref={cameraRef} ratio="16:9" />
+    <View style={styles.container}>
+      {/* ⭐ ESKİSİ GİTTİ, YENİSİ BU: CameraView */}
+      <CameraView
+        style={{ flex: 1, width: '100%' }}
+        ref={cameraRef}
+        facing="front" // Selfie kamerası
+      />
 
       <TouchableOpacity
         style={styles.captureButton}
@@ -78,6 +101,7 @@ export default function CameraScreen({ navigation, route }) {
         {loading ? (
           <ActivityIndicator size="large" color="#fff" />
         ) : (
+          // Minimalist Deklanşör
           <View style={styles.innerCircle} />
         )}
       </TouchableOpacity>
@@ -86,9 +110,10 @@ export default function CameraScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#000", justifyContent: 'center', alignItems: 'center' },
   captureButton: {
     position: "absolute",
-    bottom: 40,
+    bottom: 50,
     alignSelf: "center",
     width: 80,
     height: 80,
@@ -104,4 +129,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: "#fff",
   },
+  grantButton: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+  }
 });

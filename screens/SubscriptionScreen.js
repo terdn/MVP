@@ -1,54 +1,69 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+// ⭐ GÜVENLİ ALAN (ÇENTİK) DÜZELTMESİ
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SubscriptionScreen({ navigation }) {
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      
-      {/* STANDARD MEMBERSHIP */}
-      <View style={styles.box}>
-        <Text style={styles.plan}>STANDARD MEMBERSHIP</Text>
-        <Text style={styles.price}>$9.99</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        
+        <Text style={styles.headerTitle}>ERDN Cosmetics</Text>
 
-        <Text style={styles.feature}>• Basic AI Skin Analysis</Text>
-        <Text style={styles.feature}>• Skin Type Detection</Text>
-        <Text style={styles.feature}>• Routine Suggestions</Text>
+        {/* STANDARD MEMBERSHIP */}
+        <View style={styles.box}>
+          <Text style={styles.plan}>STANDARD MEMBERSHIP</Text>
+          <Text style={styles.price}>$9.99</Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Welcome", { premium: false })}
-        >
-          <Text style={styles.buttonText}>Choose Standard</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.feature}>• Basic AI Skin Analysis</Text>
+          <Text style={styles.feature}>• Skin Type Detection</Text>
+          <Text style={styles.feature}>• Routine Suggestions</Text>
 
-      {/* PREMIUM MEMBERSHIP */}
-      <View style={styles.box}>
-        <Text style={styles.plan}>PREMIUM MEMBERSHIP</Text>
-        <Text style={styles.price}>$19.99</Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate("Welcome", { premium: false })}
+          >
+            <Text style={styles.buttonText}>Choose Standard</Text>
+          </TouchableOpacity>
+        </View>
 
-        <Text style={styles.feature}>• Everything in Standard</Text>
-        <Text style={styles.feature}>• Undertone Analysis</Text>
-        <Text style={styles.feature}>• Shade Match (Foundation / Concealer)</Text>
-        <Text style={styles.feature}>• Color Recommendations</Text>
-        <Text style={styles.feature}>• Detailed Premium Report</Text>
+        {/* PREMIUM MEMBERSHIP - CEO SEÇİMİ */}
+        <View style={[styles.box, styles.premiumBox]}>
+          <Text style={[styles.plan, {color: '#fff'}]}>PREMIUM MEMBERSHIP</Text>
+          <Text style={[styles.price, {color: '#fff'}]}>$19.99</Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Welcome", { premium: true })}
-        >
-          <Text style={styles.buttonText}>Choose Premium</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={[styles.feature, {color: '#ddd'}]}>• Everything in Standard</Text>
+          <Text style={[styles.feature, {color: '#ddd'}]}>• Undertone Analysis</Text>
+          <Text style={[styles.feature, {color: '#ddd'}]}>• Shade Match (Foundation/Concealer)</Text>
+          <Text style={[styles.feature, {color: '#ddd'}]}>• Color Recommendations</Text>
+          <Text style={[styles.feature, {color: '#ddd'}]}>• Detailed Premium Report</Text>
 
-    </ScrollView>
+          <TouchableOpacity
+            style={[styles.button, {backgroundColor: '#fff'}]}
+            onPress={() => navigation.navigate("Welcome", { premium: true })}
+          >
+            <Text style={[styles.buttonText, {color: '#000'}]}>Choose Premium</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#fff",
+    paddingBottom: 50,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+    marginTop: 10,
+    letterSpacing: 2,
+    color: '#000',
   },
   box: {
     borderWidth: 1,
@@ -56,6 +71,10 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     marginBottom: 25,
+    backgroundColor: "#fff",
+  },
+  premiumBox: {
+    backgroundColor: "#000", // Premium siyah tema
   },
   plan: {
     fontSize: 20,
@@ -84,5 +103,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 16,
     fontWeight: "600",
+    letterSpacing: 1,
   },
 });
