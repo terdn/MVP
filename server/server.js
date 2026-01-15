@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
-// ⭐ GÜVENLİK AYARLARI İÇİN EK KÜTÜPHANELER
+// ⭐ KRİTİK KÜTÜPHANELER: Güvenlik ayarlarını yönetmek için gerekli
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 const dotenv = require('dotenv');
 
@@ -9,41 +9,30 @@ dotenv.config();
 
 const app = express();
 
-// Upload klasörü kontrolü
+// Fotoğraf deposu oluştur
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
-
 const upload = multer({ dest: 'uploads/' });
 
-// Railway'deki değişken ismin
+// API Anahtarın
 const apiKey = process.env.GEMINI_API_KEY;
-
-// API Anahtarı Kontrolü (Loglarda görmek için)
-if (!apiKey) {
-  console.error("❌ CRITICAL: GEMINI_API_KEY is missing!");
-} else {
-  console.log("✅ GEMINI_API_KEY detected.");
-}
+if (!apiKey) console.error("❌ CRITICAL: GEMINI_API_KEY eksik!");
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => {
-  res.send('ERDN Cosmetics Server is Active & Secure 🚀');
-});
+app.get('/', (req, res) => res.send('ERDN Server Ready & Unblocked 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 New analysis request received...");
+    console.log("📸 --- YENİ ANALİZ İSTEĞİ ---");
 
     if (!req.file) {
-      console.log("❌ No photo.");
-      return res.status(400).json({ analysis: "Error: No photo uploaded." });
+      return res.status(400).json({ analysis: "Hata: Fotoğraf sunucuya ulaşmadı." });
     }
 
-    // Kullanıcı Tipi (Uygulamadan gelir)
     const isPremium = req.body.premium === 'true';
-    console.log(`💎 User Tier: ${isPremium ? 'PREMIUM ($19.99)' : 'STANDARD ($9.99)'}`);
+    console.log(`💎 Müşteri Tipi: ${isPremium ? 'PREMIUM' : 'STANDARD'}`);
 
     const imagePath = req.file.path;
     const imageData = fs.readFileSync(imagePath);
@@ -51,79 +40,85 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // ⭐ GÜVENLİK DUVARLARINI KALDIR (Boş cevap sorununu çözer)
+    // ⭐ CEO STRATEJİSİ: "ASLA ENGELLEME" AYARLARI (BLOCK_NONE) ⭐
+    // Bu ayarlar, AI'ın cilt analizini 'hassas içerik' sanıp susmasını %100 engeller.
     const safetySettings = [
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      },
     ];
 
-    // ⭐ CEO VİZYONU: PROMPT MÜHENDİSLİĞİ
+    // ⭐ PROMPT MÜHENDİSLİĞİ (SENİN VİZYONUN)
     let prompt = "";
 
     if (isPremium) {
-      // --- PREMIUM ($19.99) ---
-      // Hedef: Lüks, Detaylı, Makyaj & Undertone
-      prompt = `You are an elite dermatologist and celebrity makeup artist for ERDN Cosmetics. Analyze this face strictly in English.
-      
+      // PREMIUM ($19.99): İngilizce, Lüks, Detaylı, Undertone, Marka
+      prompt = `You are an elite dermatologist and celebrity makeup artist. Analyze this face strictly in English.
       Provide a highly detailed, structured report:
-      1. **SKIN ANALYSIS**: Identify skin type (Oily/Dry/Combo) and specific conditions (Acne, texture, etc.).
-      2. **UNDERTONE & SHADE**: Determine the exact undertone (Cool/Warm/Neutral) and recommend foundation shades (e.g., Ivory, Beige, Espresso).
-      3. **MAKEUP PALETTE**: Suggest specific lipstick colors (e.g., Brick Red, Nude Pink) and blush tones that suit this skin tone.
-      4. **LUXURY ROUTINE**: A 3-step high-end skincare routine with specific active ingredients.
-      
+      1. **SKIN ANALYSIS**: Identify skin type (Oily/Dry/Combo) and specific conditions.
+      2. **UNDERTONE & SHADE**: Determine exact undertone (Cool/Warm/Neutral) and recommend foundation shades.
+      3. **MAKEUP PALETTE**: Suggest specific lipstick colors and blush tones.
+      4. **LUXURY ROUTINE**: A 3-step high-end skincare routine with active ingredients.
       Tone: Professional, sophisticated, direct.`;
     } else {
-      // --- STANDARD ($9.99) ---
-      // Hedef: Markasız, Yüzdesiz, Şık ve Basit (Chic & Simple)
+      // STANDARD ($9.99): İngilizce, Markasız, Yüzdesiz, Şık ve Basit
       prompt = `You are a helpful skincare consultant. Analyze this face in English.
+      1. Identify **Skin Type** (e.g., Oily, Dry).
+      2. Recommend **3 to 5 essential product types** based on the analysis.
       
-      First, identify the **Skin Type** (e.g., Oily, Dry).
-      
-      Then, recommend **3 to 5 essential product types** based on the analysis.
-      
-      **RULES FOR RECOMMENDATIONS:**
-      - **NO BRANDS.** Do not mention any brand names.
-      - **NO PERCENTAGES.** Do not use complex numbers.
+      **RULES:**
+      - **NO BRANDS.** Do not mention brand names.
+      - **NO PERCENTAGES.**
       - **FORMAT:** "Product Type" - "Description with Key Ingredient"
       
-      **Examples of desired style:**
+      **Examples:**
       - "Water-based Moisturizer" - "Look for a light texture enriched with Hyaluronic Acid."
       - "Gentle Cream Cleanser" - "A soothing formula containing Ceramides."
-      - "Hand Cream" - "A rich formula focused on Vitamin E."
       
       Tone: Chic, simple, and clear.`;
     }
 
-    console.log("🤖 Sending to Gemini (Safety Filters: OFF)...");
+    console.log("🤖 Gemini'ye filtressiz istek gönderiliyor...");
     
+    // İsteği gönderirken 'safetySettings' parametresini ekliyoruz
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
-      safetySettings: safetySettings,
+      safetySettings: safetySettings, // <-- İŞTE KİLİT NOKTA BURASI
     });
 
     const response = await result.response;
     const text = response.text();
     
-    console.log("✅ Analysis success!");
+    // Cevap kontrolü
+    if (!text) {
+      throw new Error("Gemini cevap döndüremedi (Hala boş).");
+    }
 
-    // Temizlik
-    fs.unlinkSync(imagePath);
-    console.log("🗑️ Photo deleted.");
+    console.log("✅ Analiz Başarılı!");
+    fs.unlinkSync(imagePath); // Temizlik
 
-    res.json({
-      analysis: text,
-      premium: isPremium
-    });
+    res.json({ analysis: text, premium: isPremium });
 
   } catch (error) {
-    console.error("🔥 SERVER ERROR:", error);
+    console.error("🔥 HATA:", error);
+    // Hata olsa bile dosyayı temizle
     if (req.file) try { fs.unlinkSync(req.file.path) } catch(e) {};
     
-    res.status(500).json({ 
-      analysis: `Server Error: ${error.message}. Please try again.` 
-    });
+    // Telefona hatayı bildir
+    res.json({ analysis: `Server Error: ${error.message}` });
   }
 });
 
