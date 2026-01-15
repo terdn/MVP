@@ -6,13 +6,13 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-// RAM Modu (Hız için)
+// RAM Modu (Hız ve Güvenlik için)
 const upload = multer({ storage: multer.memoryStorage() });
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN Server (Text Mode) Active 🚀'));
+app.get('/', (req, res) => res.send('ERDN Server (Plain Text Mode) Active 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
@@ -24,16 +24,16 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     // Model: Gemini 2.5 Flash
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Hafızandaki kurallara göre Prompt (Temiz Metin)
+    // Hafızandaki kurallara göre Prompt (Temiz, İşaretsiz Metin)
     let prompt = `
     You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
     Output strictly in plain English text.
     
     RULES:
-    1. NO Markdown (*, #, bolding etc.). Just plain text.
+    1. NO Markdown (*, #, bolding, italics etc.). Just plain text.
     2. NO Emojis.
     3. NO Brand names. Only product types and ingredients.
-    4. Format as clear sections separated by newlines.
+    4. Format as clear sections separated by empty lines.
     
     STRUCTURE:
     SKIN PROFILE
@@ -58,13 +58,14 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     3. [Step 3]
     `;
 
+    // PREMIUM İÇİN EKSTRA BÖLÜM
     if (isPremium) {
       prompt += `
       MAKEUP & COLOR HARMONY (Premium Only)
       Foundation: [Suggested finish & shade]
-      Lips: [Specific colors]
-      Gloss: [Style]
-      Avoid: [Colors to avoid]
+      Lips: [Specific colors to use]
+      Gloss: [Style recommendation]
+      Avoid: [Specific colors to avoid]
       `;
     }
 
@@ -78,12 +79,13 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       safetySettings: safetySettings,
     });
 
-    // Direkt metni alıyoruz, JSON parse derdi yok.
+    // Direkt metni alıyoruz.
     const text = result.response.text();
     
-    // Temizlik (Yıldızları ve kareleri sil)
+    // ⭐ CERRAHİ TEMİZLİK: Gemini hata yapıp * veya # koyarsa siliyoruz.
     const cleanText = text.replace(/\*/g, "").replace(/#/g, "").trim();
 
+    // Telefona düz yazı olarak gönderiyoruz (JSON parse hatası imkansız)
     res.json({ analysis: cleanText });
 
   } catch (error) {

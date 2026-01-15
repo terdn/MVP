@@ -2,10 +2,8 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, Platform, StatusBar } from 'react-native';
 
 export default function AnalysisScreen({ route, navigation }) {
+  // Gelen veri artık %100 Metin (String). Hata şansı yok.
   const { analysis, premium } = route.params;
-
-  // Gelen veri zaten temizlenmiş metin (String). Direkt gösteriyoruz.
-  // JSON hatası alma ihtimali %0.
 
   return (
     <SafeAreaView style={styles.container}>
@@ -14,10 +12,10 @@ export default function AnalysisScreen({ route, navigation }) {
         {/* Şık, Minimalist Başlık */}
         <Text style={styles.headerTitle}>ERDN ANALYSIS</Text>
         
-        {/* Premium Badge */}
+        {/* Premium Badge (Sadece Premium ise görünür) */}
         {premium && (
             <View style={styles.premiumBadge}>
-                <Text style={styles.premiumText}>PREMIUM MEMBER</Text>
+                <Text style={styles.premiumText}>PREMIUM REPORT</Text>
             </View>
         )}
 
@@ -27,7 +25,7 @@ export default function AnalysisScreen({ route, navigation }) {
             <Text style={styles.analysisText}>{analysis}</Text>
         </View>
 
-        {/* Buton */}
+        {/* Finish Butonu */}
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Welcome')}>
           <Text style={styles.buttonText}>FINISH</Text>
         </TouchableOpacity>
@@ -41,6 +39,7 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#fff', 
+    // Android çentik sorunu için boşluk
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 0 
   },
   scrollContent: { padding: 25, paddingBottom: 50 },
@@ -51,34 +50,37 @@ const styles = StyleSheet.create({
     textAlign: 'center', 
     marginBottom: 10, 
     letterSpacing: 3,
-    color: '#000'
+    color: '#000',
+    textTransform: 'uppercase'
   },
 
   premiumBadge: {
     alignSelf: 'center',
     backgroundColor: '#000',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 25,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 30,
+    borderRadius: 0
   },
   premiumText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
-    letterSpacing: 2
+    letterSpacing: 2,
+    textTransform: 'uppercase'
   },
 
   textContainer: {
     marginBottom: 30,
   },
   
-  // Minimalist, Okunaklı Yazı Stili
+  // Minimalist, Okunaklı Yazı Stili (Senin istediğin Excel olmayan görünüm)
   analysisText: {
     fontSize: 15,
-    color: '#333',
-    lineHeight: 24, // Satır arası boşluk (Okunabilirlik için)
+    color: '#111',       // Tam siyah değil, yumuşak siyah
+    lineHeight: 26,      // Satır arası boşluk (Okunabilirlik için çok önemli)
     textAlign: 'left',
-    fontWeight: '400',
+    fontWeight: '500',   // Biraz dolgun
     letterSpacing: 0.5
   },
 
