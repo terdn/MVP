@@ -1,21 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Camera } from 'expo-camera';
-import * as ImageManipulator from 'expo-image-manipulator';
+import React, { useState, useRef } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
 
 export default function CameraScreen({ navigation }) {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
   const SERVER_URL = "https://mvp-production-3039.up.railway.app";
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+  if (!permission) return <View />;
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionText}>Camera access is required</Text>
+        <TouchableOpacity onPress={requestPermission} style={styles.permissionBtn}>
+          <Text style={styles.permissionBtnText}>Allow Camera Access</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const handleTakePicture = async () => {
     if (!cameraRef.current) return;
@@ -23,8 +28,12 @@ export default function CameraScreen({ navigation }) {
     setLoading(true);
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      const photo = await cameraRef.current.takePictureAsync({
+        base64: false,
+        quality: 0.7,
+      });
 
+      // Fotoğrafı sıkıştır
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
         [{ resize: { width: 900 } }],
@@ -50,7 +59,6 @@ export default function CameraScreen({ navigation }) {
         analysis: result.analysis,
         premium: result.premium,
       });
-
     } catch (err) {
       alert("Error: " + err.message);
     }
@@ -58,15 +66,12 @@ export default function CameraScreen({ navigation }) {
     setLoading(false);
   };
 
-  if (hasPermission === null) return <View />;
-  if (!hasPermission) return <Text>No access to camera</Text>;
-
   return (
-    <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <Camera
-        style={{ flex: 1 }}
+    <View style={styles.container}>
+      <CameraView
+        style={styles.camera}
         ref={cameraRef}
-        ratio="16:9"
+        facing="front"
       />
 
       <TouchableOpacity
@@ -75,9 +80,9 @@ export default function CameraScreen({ navigation }) {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator color="#fff" size="large" />
         ) : (
-          <View style={styles.innerCircle} />
+          <View style={styles.innerButton} />
         )}
       </TouchableOpacity>
     </View>
@@ -85,6 +90,8 @@ export default function CameraScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#000" },
+  camera: { flex: 1 },
   captureButton: {
     position: "absolute",
     bottom: 40,
@@ -97,10 +104,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  innerCircle: {
+  innerButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
     backgroundColor: "#fff",
   },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000",
+  },
+  permissionText: {
+    color: "#fff",
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  permissionBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+  },
+  permissionBtnText: { color: "#000", fontSize: 16, fontWeight: "600" },
 });
