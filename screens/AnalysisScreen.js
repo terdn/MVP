@@ -6,12 +6,11 @@ export default function AnalysisScreen({ route }) {
   const { analysis, premium } = route.params || {};
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        
+
         <Text style={styles.title}>Your Analysis</Text>
 
-        {/* Eğer analiz boşsa */}
         {!analysis || analysis.length === 0 ? (
           <Text style={styles.noAnalysis}>No analysis available.</Text>
         ) : (
@@ -31,7 +30,7 @@ export default function AnalysisScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#fff",
   },

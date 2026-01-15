@@ -22,7 +22,10 @@ const model = genAI.getGenerativeModel({
 // 🔥 MAIN ANALYZE ENDPOINT
 app.post("/analyze", upload.single("photo"), async (req, res) => {
   try {
-    const { premium } = req.body; // PREMIUM MI?
+    let { premium } = req.body;
+
+    // STRING “true" → boolean true
+    premium = premium === "true" || premium === true;
 
     console.log("🔥 Foto alındı:", req.file.path);
     const imageBuffer = fs.readFileSync(req.file.path);
@@ -30,26 +33,23 @@ app.post("/analyze", upload.single("photo"), async (req, res) => {
     // --- PROMPT BUILDER ---
     let prompt = `
       You are ERDN AI Skin Consultant.
-      Analyze the user's face and provide the following:
+      Analyze the user's face and provide:
       - Skin type
       - Skin concerns
-      - Ingredient-only product recommendations (no brands)
+      - Ingredient-only product recommendations
       - Short skincare routine
       Add: "Photos are deleted after analysis. Not medical advice."
     `;
 
-    if (premium === true) {
+    if (premium) {
       prompt += `
         --- PREMIUM MODE ACTIVE ---
         Provide ALSO:
-        - Undertone analysis (warm, cool, neutral)
-        - Best foundation shade (approximate with HEX values)
-        - Best concealer shade
-        - Blush color recommendation
-        - Bronzer recommendation
-        - Lipstick tones matching undertone
+        - Undertone analysis
+        - Foundation HEX shade
+        - Concealer HEX shade
+        - Blush, bronzer, lipstick color recommendations
         - Eyeshadow & brow color harmony
-        NOTE: Avoid brands. Only give color names and HEX when needed.
       `;
     }
 
@@ -69,7 +69,7 @@ app.post("/analyze", upload.single("photo"), async (req, res) => {
     fs.unlinkSync(req.file.path); // foto silinsin
 
     return res.json({
-      premiumEnabled: premium === true,
+      premium,
       analysis: text,
     });
 
@@ -84,7 +84,7 @@ app.post("/analyze", upload.single("photo"), async (req, res) => {
   }
 });
 
-// --- GLOBAL PORT (Railway assigns automatically) ---
+// --- GLOBAL PORT ---
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
