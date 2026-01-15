@@ -1,24 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Camera } from 'expo-camera';
-import * as ImageManipulator from 'expo-image-manipulator';
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
 
 export default function CameraScreen({ navigation, route }) {
-
   const { premium } = route.params || { premium: false };
 
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
   const SERVER_URL = "https://mvp-production-3039.up.railway.app";
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const handleTakePicture = async () => {
     if (!cameraRef.current) return;
@@ -26,7 +24,9 @@ export default function CameraScreen({ navigation, route }) {
     setLoading(true);
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+      });
 
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
@@ -41,7 +41,6 @@ export default function CameraScreen({ navigation, route }) {
         type: "image/jpeg",
       });
 
-      // P R E M I U M   B İ L G İ S İ  EKLENDİ
       formData.append("premium", premium);
 
       const response = await fetch(`${SERVER_URL}/analyze`, {
@@ -56,20 +55,28 @@ export default function CameraScreen({ navigation, route }) {
         analysis: result.analysis,
         premium,
       });
-
-    } catch (err) {
-      alert("Error: " + err.message);
+    } catch (e) {
+      alert("Camera error: " + e.message);
     }
 
     setLoading(false);
   };
 
-  if (hasPermission === null) return <View />;
-  if (!hasPermission) return <Text>No access to camera</Text>;
+  if (!permission) return <View />;
+  if (!permission.granted) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>No access to camera</Text>
+        <TouchableOpacity onPress={requestPermission}>
+          <Text>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <Camera style={{ flex: 1 }} ref={cameraRef} ratio="16:9" />
+      <CameraView style={{ flex: 1 }} ref={cameraRef} facing="front" />
 
       <TouchableOpacity
         style={styles.captureButton}
