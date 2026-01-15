@@ -6,14 +6,57 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-// RAM Modu (Hız ve Güvenlik için)
+// ⭐ YENİ: Kayıt formundan gelen metinleri okuyabilmek için bu iki satırı ekledik
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const upload = multer({ storage: multer.memoryStorage() });
+
+// --- MEVCUT VERİTABANI SİMÜLASYONU ---
+// Gerçek bir DB (MongoDB gibi) bağlayana kadar trial bilgilerini burada tutacağız
+let users = []; 
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN Server (Plain Text Mode) Active 🚀'));
+app.get('/', (req, res) => res.send('ERDN Server (Trial + Analysis Mode) Active 🚀'));
 
+// ⭐ YENİ: 72 SAAT TERIAL BAŞLATMA KOMUTU (RegisterScreen'den buraya gelir)
+app.post('/api/start-trial', (req, res) => {
+    const { fullName, email, country } = req.body;
+    
+    const newUser = {
+        fullName,
+        email,
+        country,
+        trialStartDate: Date.now(), // Kayıt anındaki zamanı milisaniye olarak tutar
+    };
+
+    users.push(newUser);
+    console.log(`🚀 Yeni Trial Başladı: ${fullName} (${country})`);
+    
+    // Telefona "Başarılı" sinyali gönderir
+    res.json({ success: true, message: "72h Trial Started" });
+});
+
+// ⭐ YENİ: SÜRE KONTROL KOMUTU (Her girişte telefon buraya sorar)
+app.post('/api/check-status', (req, res) => {
+    const { email } = req.body;
+    const user = users.find(u => u.email === email);
+
+    if (!user) return res.json({ status: 'no_user' });
+
+    const seventyTwoHours = 72 * 60 * 60 * 1000; // Milisaniye cinsinden 72 saat
+    const now = Date.now();
+    
+    if (now - user.trialStartDate > seventyTwoHours) {
+        res.json({ status: 'expired' }); // 72 saat bitti
+    } else {
+        res.json({ status: 'active' }); // Deneme süresi devam ediyor
+    }
+});
+
+// --- ANALİZ MOTORUN (HİÇ DOKUNMADIK, OLDUĞU GİBİ DURUYOR) ---
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No photo" });
@@ -21,10 +64,8 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     const isPremium = req.body.premium === 'true';
     const base64Image = req.file.buffer.toString('base64');
     
-    // Model: Gemini 2.5 Flash
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Hafızandaki kurallara göre Prompt (Temiz, İşaretsiz Metin)
     let prompt = `
     You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
     Output strictly in plain English text.
@@ -58,7 +99,6 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     3. [Step 3]
     `;
 
-    // PREMIUM İÇİN EKSTRA BÖLÜM
     if (isPremium) {
       prompt += `
       MAKEUP & COLOR HARMONY (Premium Only)
@@ -79,13 +119,8 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       safetySettings: safetySettings,
     });
 
-    // Direkt metni alıyoruz.
     const text = result.response.text();
-    
-    // ⭐ CERRAHİ TEMİZLİK: Gemini hata yapıp * veya # koyarsa siliyoruz.
     const cleanText = text.replace(/\*/g, "").replace(/#/g, "").trim();
-
-    // Telefona düz yazı olarak gönderiyoruz (JSON parse hatası imkansız)
     res.json({ analysis: cleanText });
 
   } catch (error) {
