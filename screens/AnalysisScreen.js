@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, Platform, StatusBar } from 'react-native';
 
 export default function AnalysisScreen({ route, navigation }) {
-  // Gelen veri artık %100 Metin (String). Hata şansı yok.
-  const { analysis, premium } = route.params;
+  // ⭐ EKLEME: route.params veya içindeki veriler eksikse uygulama çökmesin diye varsayılan değer atadık.
+  const { analysis, premium } = route.params || { analysis: "Analysis not found. Please try again.", premium: false };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -20,7 +20,6 @@ export default function AnalysisScreen({ route, navigation }) {
         )}
 
         {/* ANALİZ METNİ */}
-        {/* Metni olduğu gibi, temiz bir tipografi ile basıyoruz */}
         <View style={styles.textContainer}>
             <Text style={styles.analysisText}>{analysis}</Text>
         </View>
@@ -39,7 +38,6 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#fff', 
-    // Android çentik sorunu için boşluk
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 0 
   },
   scrollContent: { padding: 25, paddingBottom: 50 },
@@ -74,13 +72,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   
-  // Minimalist, Okunaklı Yazı Stili (Senin istediğin Excel olmayan görünüm)
   analysisText: {
     fontSize: 15,
-    color: '#111',       // Tam siyah değil, yumuşak siyah
-    lineHeight: 26,      // Satır arası boşluk (Okunabilirlik için çok önemli)
+    color: '#111',
+    lineHeight: 26,
     textAlign: 'left',
-    fontWeight: '500',   // Biraz dolgun
+    fontWeight: '500',
     letterSpacing: 0.5
   },
 
