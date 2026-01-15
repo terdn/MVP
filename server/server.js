@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 
-// ⭐ RAM MODU: Diske yazmak yok, hız var.
+// RAM MODU: Hız ve Stabilite için
 const upload = multer({ storage: multer.memoryStorage() });
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -15,25 +15,25 @@ if (!apiKey) console.error("❌ HATA: API Key bulunamadı!");
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN AI Server Online (Production) 🚀'));
+app.get('/', (req, res) => res.send('ERDN AI Server Online (Production/Fixed) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 FİNAL ANALİZ İSTEĞİ GELDİ...");
+    console.log("📸 ANALİZ İSTEĞİ (Model Düzeltildi)...");
 
     if (!req.file) {
       return res.status(400).json({ analysis: "Hata: Fotoğraf yok." });
     }
 
     const isPremium = req.body.premium === 'true';
-    
-    // RAM'den okuma (Saniyeler sürer)
     const base64Image = req.file.buffer.toString('base64');
+    
     console.log(`⚡ Görsel işleniyor (${(req.file.size / 1024).toFixed(2)} KB)...`);
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // ⭐ İŞTE DÜZELTME BURADA: Tam Sürüm Adını Kullanıyoruz
+    // "gemini-1.5-flash" bazen bulunamaz, "-001" eklemek zorundayız.
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
-    // Güvenlik Ayarları (Sansürsüz)
     const safetySettings = [
       { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -45,7 +45,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       ? "You are an elite dermatologist. Analyze this face strictly in English. Provide: 1. Skin Type 2. Undertone 3. Foundation Shade 4. Product Recommendations." 
       : "You are a skincare consultant. Analyze this face in English. Recommend 3 product types (No brands). Format: 'Product Type' - 'Key Ingredient'. Keep it chic.";
 
-    console.log("🤖 Gemini'ye soruluyor...");
+    console.log("🤖 Gemini-1.5-Flash-001 ile konuşuluyor...");
     
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
@@ -55,11 +55,11 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
-    console.log("✅ ANALİZ BAŞARILI!");
+    console.log("✅ ANALİZ BAŞARIYLA GELDİ!");
     res.json({ analysis: text, premium: isPremium });
 
   } catch (error) {
-    console.error("🔥 HATA:", error);
+    console.error("🔥 HATA DETAYI:", error);
     res.json({ 
       analysis: `Sunucu Hatası: ${error.message}`, 
       premium: false 
