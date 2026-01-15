@@ -6,27 +6,23 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-
-// RAM MODU: Hız ve Stabilite
 const upload = multer({ storage: multer.memoryStorage() });
 
 const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) console.error("❌ HATA: API Key bulunamadı!");
-
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN AI Server (2026 Edition - v2.5 PROMPT V2) 🚀'));
+app.get('/', (req, res) => res.send('ERDN AI Server (Visual Format V3) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 ANALİZ İSTEĞİ GELDİ (Premium Prompt Modu)...");
+    console.log("📸 ANALİZ İSTEĞİ: ERDN Özel Formatı...");
 
     if (!req.file) return res.status(400).json({ analysis: "Hata: Fotoğraf yok." });
 
     const isPremium = req.body.premium === 'true';
     const base64Image = req.file.buffer.toString('base64');
     
-    // Gemini 2.5 Flash (En güncel model)
+    // Gemini 2.5 Flash (2026 Standardı)
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const safetySettings = [
@@ -36,30 +32,49 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
 
-    // ⭐ İŞTE YENİ, "HAVALI" PROMPT ⭐
-    // Excel listesi yerine, şık ve akıcı bir metin istiyoruz.
-    let prompt = "";
+    // ⭐ CEO VİZYONU: KUTUCUKLU & ORGANİZE YAPI ⭐
+    let prompt = `
+    You are the head dermatologist and image consultant for "ERDN Cosmetics".
+    Analyze the user's face strictly in English.
+    
+    Your output MUST follow this specific structure using Markdown formatting (bolding, bullet points):
 
-    if (isPremium) {
-      // PREMIUM: Detaylı ama şık
-      prompt = `You are a world-class luxury skincare concierge. Analyze this face. 
-      Output strictly in English. 
-      DO NOT provide a title or heading like "Analysis Report". Start directly.
-      Be concise, chic, and editorial. Focus on the "vibe" of the skin.
-      Identify the skin type and undertone in a sophisticated way.
-      Suggest 3-4 curated, high-end product *types* based on ingredients (e.g., "A Hyaluronic Acid Serum", "A Peptide Moisturizer"). 
-      ABSOLUTELY NO SPECIFIC BRAND NAMES.
-      Format as elegant paragraphs, not a dry numbered list. Keep it punchy.`;
-    } else {
-      // STANDART: Kısa ve öz
-      prompt = `You are a chic skincare consultant. Analyze this face in English.
-      DO NOT use a title. Keep it very short and punchy. "Less is more."
-      Identify the main skin concern in one sentence.
-      Recommend exactly 3 essential product types (e.g., "Gel Cleanser with Salicylic Acid").
-      NO BRAND NAMES. NO LONG EXPLANATIONS. Just the essentials in a minimalist style.`;
-    }
+    ---
+    ### 🧬 1. SKIN PROFILE
+    * **Skin Type:** [e.g., Combination / Oily / Dry]
+    * **Undertone:** [e.g., Cool Olive / Warm Neutral]
+    * **Key Concern:** [One sentence summary]
+    *(Brief, professional explanation of why you think this)*
 
-    console.log("🤖 Gemini'ye 'Premium Tarzda' soruluyor...");
+    ---
+    ### 🧪 2. PRODUCT RECOMMENDATIONS (No Brands)
+    *Suggest 3-5 specific product types based on ingredients.*
+    * **[Product Type]:** Rich in [Key Ingredient] to [benefit].
+    * **[Product Type]:** Contains [Key Ingredient] for [benefit].
+    * **[Product Type]:** With [Key Ingredient] to target [concern].
+
+    ---
+    ### ☀️ 3. THE ROUTINE (Day & Night)
+    **☀️ Morning Ritual:**
+    1. [Step 1]
+    2. [Step 2]
+    3. Sun Protection (Crucial)
+
+    **🌙 Evening Ritual:**
+    1. [Step 1]
+    2. [Step 2]
+    3. [Step 3]
+
+    ---
+    ### 🎨 4. COLOR HARMONY (Makeup)
+    * **✅ Best Shades:** [Color 1], [Color 2], [Color 3]
+    * **⚠️ Shades to Avoid:** [Color 1], [Color 2] (Polite suggestion)
+    
+    ---
+    *Keep the tone sophisticated, encouraging, and clear. Avoid generic "bot" language. Use bold text for emphasis.*
+    `;
+
+    console.log("🤖 Gemini'ye ERDN Şablonu gönderiliyor...");
     
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
@@ -67,13 +82,10 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     });
 
     const response = await result.response;
-    const text = response.text();
-
-    console.log("✅ ANALİZ BAŞARIYLA GELDİ (Premium Tarz)!");
-    res.json({ analysis: text, premium: isPremium });
+    res.json({ analysis: response.text(), premium: isPremium });
 
   } catch (error) {
-    console.error("🔥 HATA DETAYI:", error);
+    console.error("🔥 HATA:", error);
     res.json({ analysis: `Sunucu Hatası: ${error.message}`, premium: false });
   }
 });
