@@ -1,72 +1,67 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 
 export default function AnalysisScreen({ route }) {
-  const { result } = route.params;
-  const analysis = result?.analysis || "No analysis available.";
-  const isPremium = result?.premium === true || result?.premium === "true";
+  const { analysis, premium } = route.params || {};
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>
-        {isPremium ? "Premium Skin Analysis" : "Your Analysis"}
-      </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        
+        <Text style={styles.title}>Your Analysis</Text>
 
-      {/* PREMIUM BADGE */}
-      {isPremium && (
-        <Text style={styles.premiumBadge}>PREMIUM MODE ✓</Text>
-      )}
+        {/* Eğer analiz boşsa */}
+        {!analysis || analysis.length === 0 ? (
+          <Text style={styles.noAnalysis}>No analysis available.</Text>
+        ) : (
+          <Text style={styles.analysisText}>{analysis}</Text>
+        )}
 
-      <Text style={styles.text}>{analysis}</Text>
+        <View style={styles.warningBox}>
+          <Text style={styles.warningText}>⚠️ This is NOT medical advice.</Text>
+          <Text style={styles.warningText}>
+            🧼 Photos are deleted automatically after analysis.
+          </Text>
+        </View>
 
-      {/* GLOBAL NOTICES */}
-      <View style={styles.noticeBox}>
-        <Text style={styles.noticeText}>
-          ⚠️ This is NOT medical advice.
-        </Text>
-        <Text style={styles.noticeText}>
-          🗑️ Photos are deleted automatically after analysis.
-        </Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    backgroundColor: "#fff",
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  content: {
+    padding: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: 16,
+    marginBottom: 15,
   },
-  premiumBadge: {
-    backgroundColor: "#FF007F",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    color: "#fff",
-    alignSelf: "flex-start",
-    marginBottom: 12,
-    fontWeight: "bold",
+  noAnalysis: {
+    fontSize: 18,
+    color: "#888",
+    marginVertical: 10,
   },
-  text: {
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 20,
+  analysisText: {
+    fontSize: 18,
+    color: "#333",
+    lineHeight: 26,
   },
-  noticeBox: {
+  warningBox: {
     marginTop: 30,
     padding: 15,
-    borderRadius: 10,
-    backgroundColor: "#f3f3f3",
+    backgroundColor: "#f1f1f1",
+    borderRadius: 12,
   },
-  noticeText: {
-    fontSize: 13,
-    color: "#777",
-    marginBottom: 6,
+  warningText: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 5,
   },
 });
