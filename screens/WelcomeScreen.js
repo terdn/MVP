@@ -19,7 +19,7 @@ export default function WelcomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
   title: { fontSize: 32, fontWeight: "700", marginBottom: 40 },
   button: {
     backgroundColor: "#000",
