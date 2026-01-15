@@ -15,24 +15,18 @@ if (!apiKey) console.error("❌ HATA: API Key bulunamadı!");
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-app.get('/', (req, res) => res.send('ERDN AI Server (2026 Edition - v2.5) 🚀'));
+app.get('/', (req, res) => res.send('ERDN AI Server (2026 Edition - v2.5 PROMPT V2) 🚀'));
 
 app.post('/analyze', upload.single('photo'), async (req, res) => {
   try {
-    console.log("📸 ANALİZ İSTEĞİ (Model: Gemini 2.5 Flash)...");
+    console.log("📸 ANALİZ İSTEĞİ GELDİ (Premium Prompt Modu)...");
 
-    if (!req.file) {
-      return res.status(400).json({ analysis: "Hata: Fotoğraf yok." });
-    }
+    if (!req.file) return res.status(400).json({ analysis: "Hata: Fotoğraf yok." });
 
     const isPremium = req.body.premium === 'true';
-    
-    // RAM'den okuma
     const base64Image = req.file.buffer.toString('base64');
-    console.log(`⚡ Görsel Hafızada (${(req.file.size / 1024).toFixed(2)} KB)...`);
-
-    // ⭐ KRİTİK DEĞİŞİKLİK: 2026 MODELİ
-    // gemini-1.5 serisi emekli oldu. Artık 2.5 serisi aktif.
+    
+    // Gemini 2.5 Flash (En güncel model)
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const safetySettings = [
@@ -42,11 +36,30 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
       { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
 
-    let prompt = isPremium 
-      ? "You are an elite dermatologist. Analyze this face strictly in English. Provide: 1. Skin Type 2. Undertone 3. Foundation Shade 4. Product Recommendations." 
-      : "You are a skincare consultant. Analyze this face in English. Recommend 3 product types (No brands). Format: 'Product Type' - 'Key Ingredient'. Keep it chic.";
+    // ⭐ İŞTE YENİ, "HAVALI" PROMPT ⭐
+    // Excel listesi yerine, şık ve akıcı bir metin istiyoruz.
+    let prompt = "";
 
-    console.log("🤖 Gemini 2.5 Flash'a soruluyor...");
+    if (isPremium) {
+      // PREMIUM: Detaylı ama şık
+      prompt = `You are a world-class luxury skincare concierge. Analyze this face. 
+      Output strictly in English. 
+      DO NOT provide a title or heading like "Analysis Report". Start directly.
+      Be concise, chic, and editorial. Focus on the "vibe" of the skin.
+      Identify the skin type and undertone in a sophisticated way.
+      Suggest 3-4 curated, high-end product *types* based on ingredients (e.g., "A Hyaluronic Acid Serum", "A Peptide Moisturizer"). 
+      ABSOLUTELY NO SPECIFIC BRAND NAMES.
+      Format as elegant paragraphs, not a dry numbered list. Keep it punchy.`;
+    } else {
+      // STANDART: Kısa ve öz
+      prompt = `You are a chic skincare consultant. Analyze this face in English.
+      DO NOT use a title. Keep it very short and punchy. "Less is more."
+      Identify the main skin concern in one sentence.
+      Recommend exactly 3 essential product types (e.g., "Gel Cleanser with Salicylic Acid").
+      NO BRAND NAMES. NO LONG EXPLANATIONS. Just the essentials in a minimalist style.`;
+    }
+
+    console.log("🤖 Gemini'ye 'Premium Tarzda' soruluyor...");
     
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
@@ -56,17 +69,12 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
-    console.log("✅ ANALİZ BAŞARIYLA GELDİ!");
+    console.log("✅ ANALİZ BAŞARIYLA GELDİ (Premium Tarz)!");
     res.json({ analysis: text, premium: isPremium });
 
   } catch (error) {
     console.error("🔥 HATA DETAYI:", error);
-    // Hata 404 ise kullanıcıya "Model Eskidi" diye bilgi verelim
-    if (error.message.includes("404")) {
-        res.json({ analysis: "Sunucu Hatası: Model versiyonu (1.5) eski. Lütfen sunucuyu 2.5'e güncelleyin.", premium: false });
-    } else {
-        res.json({ analysis: `Sunucu Hatası: ${error.message}`, premium: false });
-    }
+    res.json({ analysis: `Sunucu Hatası: ${error.message}`, premium: false });
   }
 });
 
