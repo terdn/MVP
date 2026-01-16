@@ -1,39 +1,65 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, SafeAreaView } from 'react-native';
-import axios from 'axios';
-// ⭐ Hafıza kaydı için gerekli kütüphane
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
+// ⭐ Yeni Paket: Ülke Seçimi İçin
+import { Picker } from '@react-native-picker/picker';
+// ⭐ Hafıza kaydı
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RegisterScreen({ navigation }) {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    country: ''
+    age: '',     // Yaş eklendi (Tıbbi güvenlik için)
+    password: '123' // MVP için standart şifre
   });
 
-  const startTrial = async () => {
+  const [country, setCountry] = useState('Turkey'); // Varsayılan seçim
+  const [loading, setLoading] = useState(false);
+
+  // SENİN GÜNCEL RAILWAY ADRESİN
+  const API_URL = 'https://mvp-production-a77e.up.railway.app';
+
+  const handleRegister = async () => {
     // 1. Boş alan kontrolü
-    if (!formData.fullName || !formData.email || !formData.country) {
+    if (!formData.fullName || !formData.email || !formData.age) {
       Alert.alert("Missing Info", "Please fill all fields to activate your free trial.");
       return;
     }
 
+    setLoading(true);
+
     try {
-      // 2. Sunucuya kayıt isteği (URL'ini kendi Railway adresinle güncellemeyi unutma)
-      const response = await axios.post('https://mvp-production-a77e.up.railway.app/api/start-trial', formData);
-      
-      if (response.data.success) {
-        // 3. ⭐ KRİTİK: E-postayı telefon hafızasına kaydediyoruz (Kilit sistemi için)
-        await AsyncStorage.setItem('userEmail', formData.email);
+      // 2. Sunucuya kayıt isteği (/register endpoint'i server.js ile uyumlu)
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fullName: formData.fullName,
+            email: formData.email.toLowerCase(),
+            password: formData.password,
+            country: country, // Seçilen ülke
+            age: formData.age
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 3. Hafızaya Kayıt (Auto-Login temeli)
+        await AsyncStorage.setItem('userEmail', formData.email.toLowerCase());
         
-        Alert.alert("Trial Activated", "Your 72-hour full access has started!");
-        
-        // 4. Deneme süresinde olduğu için Premium haklarıyla Welcome ekranına yönlendiriyoruz
-        navigation.navigate("Welcome", { premium: true, userEmail: formData.email });
+        // 4. Başarılı ise Analiz ekranına yönlendir (Akış: Kayıt -> Analiz -> Dashboard)
+        Alert.alert("Welcome CEO", "Your 72-hour access is active.", [
+            { text: "START ANALYSIS", onPress: () => navigation.replace('Analysis') }
+        ]);
+      } else {
+        Alert.alert("Registration Error", data.message || "Could not create account.");
       }
     } catch (error) {
       console.error(error);
-      Alert.alert("Connection Error", "Could not reach the server. Please try again.");
+      Alert.alert("Connection Error", "Could not reach the server.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,34 +67,71 @@ export default function RegisterScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         
+        {/* TASARIM AYNEN KORUNDU */}
         <Text style={styles.brandTitle}>ERDN COSMETICS</Text>
         <Text style={styles.subtitle}>72-HOUR FREE TRIAL</Text>
         
         <View style={styles.inputContainer}>
+          
+          {/* İSİM */}
           <TextInput 
             style={styles.input} 
-            placeholder="Full Name" 
+            placeholder="FULL NAME" 
             placeholderTextColor="#999"
             onChangeText={(txt) => setFormData({...formData, fullName: txt})}
           />
+          
+          {/* EMAIL */}
           <TextInput 
             style={styles.input} 
-            placeholder="Gmail Address" 
+            placeholder="GMAIL ADDRESS" 
             placeholderTextColor="#999"
             keyboardType="email-address"
             autoCapitalize="none"
             onChangeText={(txt) => setFormData({...formData, email: txt})}
           />
+
+          {/* YAŞ (YENİ - GÖRÜNÜM AYNI) */}
           <TextInput 
             style={styles.input} 
-            placeholder="Country" 
+            placeholder="AGE" 
             placeholderTextColor="#999"
-            onChangeText={(txt) => setFormData({...formData, country: txt})}
+            keyboardType="numeric"
+            onChangeText={(txt) => setFormData({...formData, age: txt})}
           />
+
+          {/* ÜLKE SEÇİMİ (YENİ LİSTE - ESKİ GÖRÜNÜM) */}
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={country}
+              onValueChange={(itemValue) => setCountry(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#000"
+            >
+              {/* GLOBAL PAZAR LİSTESİ */}
+              <Picker.Item label="🇹🇷 Turkey" value="Turkey" />
+              <Picker.Item label="🇺🇸 USA" value="USA" />
+              <Picker.Item label="🇩🇪 Germany" value="Germany" />
+              <Picker.Item label="🇬🇧 UK" value="UK" />
+              <Picker.Item label="🇷🇺 Russia" value="Russia" />
+              <Picker.Item label="🇧🇷 Brazil" value="Brazil" />
+              <Picker.Item label="🇰🇷 South Korea" value="South Korea" />
+              <Picker.Item label="🇦🇪 UAE" value="UAE" />
+              <Picker.Item label="🇫🇷 France" value="France" />
+              <Picker.Item label="🇮🇹 Italy" value="Italy" />
+              <Picker.Item label="🇨🇦 Canada" value="Canada" />
+              <Picker.Item label="🌍 Other" value="Other" />
+            </Picker>
+          </View>
+
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={startTrial}>
-          <Text style={styles.buttonText}>ACTIVATE MY ACCESS</Text>
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.buttonText}>ACTIVATE MY ACCESS</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.footerNote}>No credit card required for trial.</Text>
@@ -100,13 +163,28 @@ const styles = StyleSheet.create({
   
   inputContainer: { marginBottom: 30 },
   
+  // Input Stilleri (Eskisiyle Birebir Aynı)
   input: { 
     borderBottomWidth: 1, 
     borderColor: '#000', 
     paddingVertical: 15, 
     marginBottom: 20, 
-    fontSize: 16, 
-    color: '#000' 
+    fontSize: 14, // Biraz daha şık durması için 16 yerine 14
+    color: '#000',
+    letterSpacing: 1
+  },
+
+  // Picker için özel stil (Input gibi görünmesi için)
+  pickerContainer: {
+    borderBottomWidth: 1,
+    borderColor: '#000',
+    marginBottom: 20,
+    justifyContent: 'center'
+  },
+  picker: {
+    height: 55, 
+    width: '100%',
+    color: '#000',
   },
   
   button: { 
