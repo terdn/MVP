@@ -1,15 +1,62 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, Platform, StatusBar } from 'react-native';
 
 export default function AnalysisScreen({ route, navigation }) {
-  // ⭐ EKLEME: route.params veya içindeki veriler eksikse uygulama çökmesin diye varsayılan değer atadık.
-  const { analysis, premium } = route.params || { analysis: "Analysis not found. Please try again.", premium: false };
+  // Veriyi alıyoruz
+  const { analysis, premium } = route.params || { analysis: null, premium: false };
+  const [displayText, setDisplayText] = useState("Generating medical report...");
+
+  useEffect(() => {
+    // BURASI KRİTİK: Gelen JSON verisini senin sevdiğin düz metne çeviriyoruz.
+    if (analysis && typeof analysis === 'object') {
+      let text = "";
+
+      // 1. CİLT PROFİLİ
+      text += "SKIN PROFILE\n";
+      text += `Type: ${analysis.skinProfile?.type || 'N/A'}\n`;
+      text += `Undertone: ${analysis.skinProfile?.undertone || 'N/A'}\n`;
+      text += `Concern: ${analysis.skinProfile?.concern || 'N/A'}\n\n`;
+
+      // 2. ÖNERİLEN ÜRÜNLER
+      text += "RECOMMENDED PRODUCTS (Generic)\n";
+      if (analysis.products && Array.isArray(analysis.products)) {
+        analysis.products.forEach((prod, index) => {
+          text += `${index + 1}. ${prod}\n`;
+        });
+      }
+      text += "\n";
+
+      // 3. RUTİN
+      text += "ROUTINE\n";
+      
+      text += "Day:\n"; // Gündüz
+      if (analysis.routine?.day && Array.isArray(analysis.routine.day)) {
+        analysis.routine.day.forEach((step, index) => {
+          text += `${index + 1}. ${step}\n`;
+        });
+      }
+
+      text += "Night:\n"; // Gece
+      if (analysis.routine?.night && Array.isArray(analysis.routine.night)) {
+        analysis.routine.night.forEach((step, index) => {
+          text += `${index + 1}. ${step}\n`;
+        });
+      }
+
+      setDisplayText(text); // Hazırlanan metni ekrana bas
+    } else if (typeof analysis === 'string') {
+      // Eğer eski usul bir hata mesajı vs gelirse direkt göster
+      setDisplayText(analysis);
+    } else {
+      setDisplayText("Analysis data could not be parsed.");
+    }
+  }, [analysis]);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        {/* Şık, Minimalist Başlık */}
+        {/* Şık, Minimalist Başlık (DEĞİŞMEDİ) */}
         <Text style={styles.headerTitle}>ERDN ANALYSIS</Text>
         
         {/* Premium Badge (Sadece Premium ise görünür) */}
@@ -19,13 +66,16 @@ export default function AnalysisScreen({ route, navigation }) {
             </View>
         )}
 
-        {/* ANALİZ METNİ */}
+        {/* ANALİZ METNİ (GÖRÜNÜM AYNI) */}
         <View style={styles.textContainer}>
-            <Text style={styles.analysisText}>{analysis}</Text>
+            <Text style={styles.analysisText}>{displayText}</Text>
         </View>
 
-        {/* Finish Butonu */}
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Welcome')}>
+        {/* Finish Butonu - ARTIK DASHBOARD'A GİDİYOR */}
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => navigation.replace('Dashboard', { analysisData: analysis, premium: premium })}
+        >
           <Text style={styles.buttonText}>FINISH</Text>
         </TouchableOpacity>
 
@@ -75,7 +125,7 @@ const styles = StyleSheet.create({
   analysisText: {
     fontSize: 15,
     color: '#111',
-    lineHeight: 26,
+    lineHeight: 26, // Satır arası boşluğu (Rahat okuma için)
     textAlign: 'left',
     fontWeight: '500',
     letterSpacing: 0.5
