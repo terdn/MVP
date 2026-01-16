@@ -25,7 +25,6 @@ const AnalysisSchema = new mongoose.Schema({
     skinProfile: { type: String, undertone: String, concern: String },
     products: [String],
     routine: { day: [String], night: [String] },
-    // Makeup alanını şemada tutuyoruz ama ilk analizde boş kalacak.
     makeup: { 
         foundation: { suggest: [String], avoid: [String] },
         concealer: { suggest: [String], avoid: [String] },
@@ -38,22 +37,33 @@ const Analysis = mongoose.model('Analysis', AnalysisSchema);
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// --- 1. ANA CİLT ANALİZİ (MAKYAJ YOK - SADECE MEDICAL) ---
+// --- 1. ANA CİLT ANALİZİ (GÜVENLİK KONTROLLÜ) ---
 app.post('/analyze', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No photo" });
         
-        const email = req.body.email; 
+        // Frontend'den hem email hem de deviceId istiyoruz
+        const { email, deviceId } = req.body; 
+        
         let isPremium = false;
         if (email) {
             const user = await User.findOne({ email });
-            if (user) isPremium = user.isPremium;
+            
+            // ⭐ GÜVENLİK DUVARI: TEK CİHAZ KURALI
+            if (user) {
+                // Eğer veritabanındaki ID ile gelen ID uyuşmuyorsa, başkası girmiş demektir.
+                // Ancak ilk defa giriyorsa (deviceId boşsa) izin veriyoruz.
+                if (user.deviceId && user.deviceId !== deviceId) {
+                    return res.status(401).json({ error: "Session expired. Logged in on another device." });
+                }
+                isPremium = user.isPremium;
+            }
         }
 
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT GÜNCELLENDİ: Makyaj kısmı TAMAMEN ÇIKARILDI. Sadece Cilt.
+        // PROMPT: AYNI KALDI
         let prompt = `
         You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
         IMPORTANT: Keep your tone strictly professional, medical, and concise. exactly like a medical report.
@@ -95,8 +105,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     }
 });
 
-// --- 2. ⭐ YENİ: ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID ODAKLI) ---
-// Sadece butona basınca çalışır.
+// --- 2. ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID ODAKLI) ---
 app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
     try {
         console.log("💄 Makyaj Analizi İsteği (Harmony Modu)...");
@@ -105,7 +114,7 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT: Uyum ve Avoid kurallı
+        // PROMPT: AYNI KALDI
         let prompt = `
         You are a high-end celebrity makeup artist. Look at the user's face, lighting, and skin undertone in the photo.
         Create a cohesive makeup look RIGHT NOW.
@@ -155,22 +164,39 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
 // --- STANDART ENDPOINTLER ---
 app.get('/', (req, res) => res.send('ERDN Server Active'));
 
+// --- REGISTER (CİHAZ KAYDI EKLENDİ) ---
 app.post('/register', async (req, res) => {
     try {
-        const { fullName, email, password, country, gender, age } = req.body;
+        // deviceId parametresini de alıyoruz
+        const { fullName, email, password, country, gender, age, deviceId } = req.body;
+        
         const existingUser = await User.findOne({ email });
         if (existingUser) return res.status(400).json({ message: "Email already exists" });
-        const newUser = new User({ fullName, email, password, country, gender, age });
+        
+        // Yeni kullanıcıyı kaydederken Cihaz Kimliğini de yazıyoruz
+        const newUser = new User({ fullName, email, password, country, gender, age, deviceId });
         await newUser.save();
+        
         res.status(201).json({ message: "User created" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- LOGIN (TAHTA GEÇİŞ - UPDATE DEVICE ID) ---
 app.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        // Giriş yapan cihazın ID'sini alıyoruz
+        const { email, password, deviceId } = req.body;
+        
         const user = await User.findOne({ email });
         if (!user || user.password !== password) return res.status(400).json({ message: "Invalid credentials" });
+        
+        // ⭐ KRİTİK HAMLE: Yeni giren cihaz, artık "Aktif Cihaz" olur.
+        // Veritabanındaki deviceId güncellenir. Eski cihazın yetkisi düşer.
+        if (deviceId) {
+            user.deviceId = deviceId;
+            await user.save();
+        }
+
         res.json({ message: "Login successful", user: { email: user.email, fullName: user.fullName, isPremium: user.isPremium } });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
