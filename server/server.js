@@ -12,11 +12,14 @@ app.use(express.urlencoded({ extended: true }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- MONGODB BAĞLANTISI ---
-const mongoURI = "mongodb+srv://tahaerdin3_db_user:v1dxhuCRLJRfJHRw@cluster0.cmb2fdn.mongodb.net/?appName=Cluster0";
+// --- MONGODB BAĞLANTISI (GÜVENLİ) ---
+// Not: Şifreyi artık .env dosyasından çekiyoruz
+const mongoURI = process.env.MONGO_URI;
+
 mongoose.connect(mongoURI)
   .then(() => console.log("🚀 Veritabanı Bağlantısı Başarılı!"))
   .catch((err) => console.log("❌ Veritabanı Hatası:", err));
+
 
 // --- ANALİZ GEÇMİŞİ ŞEMASI ---
 const AnalysisSchema = new mongoose.Schema({
@@ -25,6 +28,7 @@ const AnalysisSchema = new mongoose.Schema({
     skinProfile: { type: String, undertone: String, concern: String },
     products: [String],
     routine: { day: [String], night: [String] },
+    // Makeup alanı şemada duruyor, analizden gelen veriyi buraya basıyoruz
     makeup: { 
         foundation: { suggest: [String], avoid: [String] },
         concealer: { suggest: [String], avoid: [String] },
@@ -34,10 +38,12 @@ const AnalysisSchema = new mongoose.Schema({
 });
 const Analysis = mongoose.model('Analysis', AnalysisSchema);
 
+
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// --- 1. ANA CİLT ANALİZİ (GÜVENLİK KONTROLLÜ) ---
+
+// --- 1. ANA CİLT ANALİZİ (GÜVENLİK KONTROLLÜ & MARKA YASAKLI) ---
 app.post('/analyze', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No photo" });
@@ -52,7 +58,6 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
             // ⭐ GÜVENLİK DUVARI: TEK CİHAZ KURALI
             if (user) {
                 // Eğer veritabanındaki ID ile gelen ID uyuşmuyorsa, başkası girmiş demektir.
-                // Ancak ilk defa giriyorsa (deviceId boşsa) izin veriyoruz.
                 if (user.deviceId && user.deviceId !== deviceId) {
                     return res.status(401).json({ error: "Session expired. Logged in on another device." });
                 }
@@ -63,10 +68,13 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT: AYNI KALDI
+        // PROMPT GÜNCELLENDİ: MARKA YASAK (NO BRANDS)
         let prompt = `
         You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
         IMPORTANT: Keep your tone strictly professional, medical, and concise. exactly like a medical report.
+        
+        CRITICAL RULE: NO BRANDS. Do NOT recommend specific brand names (e.g. Cerave, La Roche Posay). Use only INGREDIENTS (e.g. Salicylic Acid, Niacinamide).
+
         Return ONLY valid JSON.
         
         Structure:
@@ -76,7 +84,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
                 "undertone": "Full sentence description of undertone",
                 "concern": "Full sentence description of main concern"
             },
-            "products": ["Product recommendation 1", "Product recommendation 2", "Product recommendation 3"],
+            "products": ["Ingredient recommendation 1", "Ingredient recommendation 2", "Ingredient recommendation 3"],
             "routine": {
                 "day": ["Step 1 detailed instruction", "Step 2 detailed instruction"],
                 "night": ["Step 1 detailed instruction", "Step 2 detailed instruction"]
@@ -105,23 +113,25 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     }
 });
 
-// --- 2. ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID ODAKLI) ---
+
+// --- 2. ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID & MARKA YASAKLI) ---
 app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
     try {
-        console.log("💄 Makyaj Analizi İsteği (Harmony Modu)...");
+        console.log("💄 Makyaj Analizi İsteği (No-Brand Modu)...");
         if (!req.file) return res.status(400).json({ error: "No photo" });
 
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT: AYNI KALDI
+        // PROMPT GÜNCELLENDİ: MARKA YASAK (NO BRANDS)
         let prompt = `
         You are a high-end celebrity makeup artist. Look at the user's face, lighting, and skin undertone in the photo.
         Create a cohesive makeup look RIGHT NOW.
 
         CRITICAL RULES:
-        1. COLOR HARMONY: The lipstick, blush, and eyeshadow colors MUST complement each other and the user's skin undertone. They should be wearable together as a single look.
-        2. AVOIDANCE: For every suggestion, strictly tell what to AVOID (e.g. "Avoid matte finish", "Avoid orange undertones").
+        1. NO BRANDS: Do NOT mention any brand names (e.g. MAC, Nars). Use only descriptive terms (e.g. 'Matte Brick Red', 'Satin Finish').
+        2. COLOR HARMONY: The lipstick, blush, and eyeshadow colors MUST complement each other and the user's skin undertone. They should be wearable together as a single look.
+        3. AVOIDANCE: For every suggestion, strictly tell what to AVOID (e.g. "Avoid matte finish", "Avoid orange undertones").
 
         Return ONLY valid JSON. Structure:
         {
@@ -161,10 +171,12 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
     }
 });
 
+
 // --- STANDART ENDPOINTLER ---
 app.get('/', (req, res) => res.send('ERDN Server Active'));
 
-// --- REGISTER (CİHAZ KAYDI EKLENDİ) ---
+
+// --- REGISTER (CİHAZ KAYITLI) ---
 app.post('/register', async (req, res) => {
     try {
         // deviceId parametresini de alıyoruz
@@ -180,6 +192,7 @@ app.post('/register', async (req, res) => {
         res.status(201).json({ message: "User created" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 
 // --- LOGIN (TAHTA GEÇİŞ - UPDATE DEVICE ID) ---
 app.post('/login', async (req, res) => {
