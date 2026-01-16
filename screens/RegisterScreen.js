@@ -20,7 +20,7 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       // 2. Sunucuya kayıt isteği (URL'ini kendi Railway adresinle güncellemeyi unutma)
-      const response = await axios.post('https://SENIN-RAILWAY-URLIN.up.railway.app/api/start-trial', formData);
+      const response = await axios.post('https://mvp-production-a77e.up.railway.app/api/start-trial', formData);
       
       if (response.data.success) {
         // 3. ⭐ KRİTİK: E-postayı telefon hafızasına kaydediyoruz (Kilit sistemi için)
