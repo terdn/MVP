@@ -18,14 +18,15 @@ mongoose.connect(mongoURI)
   .then(() => console.log("🚀 Veritabanı Bağlantısı Başarılı!"))
   .catch((err) => console.log("❌ Veritabanı Hatası:", err));
 
-// --- ANALİZ GEÇMİŞİ (Dashboard İçin Şart) ---
+// --- ANALİZ GEÇMİŞİ ŞEMASI ---
 const AnalysisSchema = new mongoose.Schema({
     userId: String,
     date: { type: Date, default: Date.now },
-    skinProfile: { type: String, undertone: String, concern: String }, // Senin sevdiğin başlıklar
+    skinProfile: { type: String, undertone: String, concern: String },
     products: [String],
     routine: { day: [String], night: [String] },
-    makeup: { // Sadece burayı yeni ekledik
+    // Makeup alanını şemada tutuyoruz ama ilk analizde boş kalacak.
+    makeup: { 
         foundation: { suggest: [String], avoid: [String] },
         concealer: { suggest: [String], avoid: [String] },
         lipstick: { suggest: [String], avoid: [String] },
@@ -37,7 +38,7 @@ const Analysis = mongoose.model('Analysis', AnalysisSchema);
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// --- ANALİZ MOTORU ---
+// --- 1. ANA CİLT ANALİZİ (MAKYAJ YOK - SADECE MEDICAL) ---
 app.post('/analyze', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No photo" });
@@ -52,10 +53,9 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // --- PROMPT (Senin sevdiğin yapı korunarak JSON'a uyarlandı) ---
+        // PROMPT GÜNCELLENDİ: Makyaj kısmı TAMAMEN ÇIKARILDI. Sadece Cilt.
         let prompt = `
         You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
-        
         IMPORTANT: Keep your tone strictly professional, medical, and concise. exactly like a medical report.
         Return ONLY valid JSON.
         
@@ -71,19 +71,6 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
                 "day": ["Step 1 detailed instruction", "Step 2 detailed instruction"],
                 "night": ["Step 1 detailed instruction", "Step 2 detailed instruction"]
             }
-        `;
-
-        // Makyaj kısmı (Sadece burası yeni)
-        prompt += `,
-            "makeup": {
-                "foundation": { "suggest": ["Finish & Shade 1", "Finish & Shade 2"], "avoid": ["Avoid this finish"] },
-                "concealer": { "suggest": ["Shade description"], "avoid": ["Avoid this undertone"] },
-                "lipstick": { "suggest": ["Specific Color 1", "Specific Color 2"], "avoid": ["Avoid this color"] },
-                "gloss": { "suggest": ["Style/Finish"], "avoid": ["Avoid this style"] }
-            }
-        `;
-        
-        prompt += `
         }
         `;
 
@@ -95,7 +82,6 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
         const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
         const analysisData = JSON.parse(cleanJson);
 
-        // Veritabanına Kayıt
         if (email) {
             const newAnalysis = new Analysis({ userId: email, ...analysisData });
             await newAnalysis.save();
@@ -109,10 +95,67 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     }
 });
 
-// --- STANDARTLAR ---
+// --- 2. ⭐ YENİ: ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID ODAKLI) ---
+// Sadece butona basınca çalışır.
+app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
+    try {
+        console.log("💄 Makyaj Analizi İsteği (Harmony Modu)...");
+        if (!req.file) return res.status(400).json({ error: "No photo" });
+
+        const base64Image = req.file.buffer.toString('base64');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        // PROMPT: Uyum ve Avoid kurallı
+        let prompt = `
+        You are a high-end celebrity makeup artist. Look at the user's face, lighting, and skin undertone in the photo.
+        Create a cohesive makeup look RIGHT NOW.
+
+        CRITICAL RULES:
+        1. COLOR HARMONY: The lipstick, blush, and eyeshadow colors MUST complement each other and the user's skin undertone. They should be wearable together as a single look.
+        2. AVOIDANCE: For every suggestion, strictly tell what to AVOID (e.g. "Avoid matte finish", "Avoid orange undertones").
+
+        Return ONLY valid JSON. Structure:
+        {
+            "foundation": { 
+                "suggest": "Exact shade and finish", 
+                "avoid": "What to avoid" 
+            },
+            "blush": { 
+                "suggest": "Color and placement (must match lips)", 
+                "avoid": "Color/Texture to avoid" 
+            },
+            "eyes": { 
+                "suggest": "Eyeshadow colors and style", 
+                "avoid": "Style/Color to avoid" 
+            },
+            "lips": { 
+                "suggest": "Lipstick color and texture (must match blush)", 
+                "avoid": "Color to avoid" 
+            },
+            "vibe": "A very short name for this look (e.g. 'Clean Girl')"
+        }
+        `;
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }] }],
+        });
+
+        const text = result.response.text();
+        const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const makeupData = JSON.parse(cleanJson);
+
+        res.json({ success: true, data: makeupData });
+
+    } catch (error) {
+        console.error("MAKYAJ ANALİZ HATASI:", error);
+        res.json({ success: false, error: "Makeup analysis failed." });
+    }
+});
+
+// --- STANDART ENDPOINTLER ---
 app.get('/', (req, res) => res.send('ERDN Server Active'));
+
 app.post('/register', async (req, res) => {
-    // Burası aynı kalıyor
     try {
         const { fullName, email, password, country, gender, age } = req.body;
         const existingUser = await User.findOne({ email });
@@ -122,8 +165,8 @@ app.post('/register', async (req, res) => {
         res.status(201).json({ message: "User created" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.post('/login', async (req, res) => {
-    // Burası aynı kalıyor
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
