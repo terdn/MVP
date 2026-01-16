@@ -108,7 +108,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No photo" });
     const isPremium = req.body.premium === 'true';
     const base64Image = req.file.buffer.toString('base64');
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     let prompt = `
     You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
     Output strictly in plain English text.
