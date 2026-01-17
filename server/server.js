@@ -2,8 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const dotenv = require('dotenv');
-const mongoose = require('mongoose');
-const User = require('./models/User'); 
+const { MongoClient } = require('mongodb'); // Native Driver
 
 dotenv.config();
 const app = express();
@@ -12,52 +11,39 @@ app.use(express.urlencoded({ extended: true }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- MONGODB BAĞLANTISI (GÜVENLİ) ---
-// Not: Şifreyi artık .env dosyasından çekiyoruz
-const mongoURI = process.env.MONGO_URI;
+// --- NATIVE MONGODB BAĞLANTISI ---
+const uri = process.env.MONGO_URI;
+const client = new MongoClient(uri);
+let db, usersCollection, analysisCollection;
 
-mongoose.connect(mongoURI)
-  .then(() => console.log("🚀 Veritabanı Bağlantısı Başarılı!"))
-  .catch((err) => console.log("❌ Veritabanı Hatası:", err));
-
-
-// --- ANALİZ GEÇMİŞİ ŞEMASI ---
-const AnalysisSchema = new mongoose.Schema({
-    userId: String,
-    date: { type: Date, default: Date.now },
-    skinProfile: { type: String, undertone: String, concern: String },
-    products: [String],
-    routine: { day: [String], night: [String] },
-    // Makeup alanı şemada duruyor, analizden gelen veriyi buraya basıyoruz
-    makeup: { 
-        foundation: { suggest: [String], avoid: [String] },
-        concealer: { suggest: [String], avoid: [String] },
-        lipstick: { suggest: [String], avoid: [String] },
-        gloss: { suggest: [String], avoid: [String] }
+async function connectDB() {
+    try {
+        await client.connect();
+        db = client.db('erdn-cosmetics'); 
+        usersCollection = db.collection('users');
+        analysisCollection = db.collection('analyses');
+        console.log("🚀 Veritabanı Bağlantısı Başarılı (Native Mode)!");
+    } catch (err) {
+        console.log("❌ Veritabanı Hatası:", err);
     }
-});
-const Analysis = mongoose.model('Analysis', AnalysisSchema);
-
+}
+connectDB();
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-
-// --- 1. ANA CİLT ANALİZİ (GÜVENLİK KONTROLLÜ & MARKA YASAKLI) ---
+// --- 1. ANA CİLT ANALİZİ (TÜM GÜVENLİK VE PROMPT KORUNDU) ---
 app.post('/analyze', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No photo" });
         
-        // Frontend'den hem email hem de deviceId istiyoruz
         const { email, deviceId } = req.body; 
-        
         let isPremium = false;
+
         if (email) {
-            const user = await User.findOne({ email });
-            
-            // ⭐ GÜVENLİK DUVARI: TEK CİHAZ KURALI
+            const user = await usersCollection.findOne({ email });
             if (user) {
-                // Eğer veritabanındaki ID ile gelen ID uyuşmuyorsa, başkası girmiş demektir.
+                // ⭐ GÜVENLİK DUVARI: TEK CİHAZ KURALI (HİÇ DEĞİŞMEDİ)
                 if (user.deviceId && user.deviceId !== deviceId) {
                     return res.status(401).json({ error: "Session expired. Logged in on another device." });
                 }
@@ -68,7 +54,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT GÜNCELLENDİ: MARKA YASAK (NO BRANDS)
+        // SENİN ORİJİNAL PROMPTUN (DOKUNULMADI)
         let prompt = `
         You are the Chief Dermatologist for ERDN Cosmetics. Analyze the face.
         IMPORTANT: Keep your tone strictly professional, medical, and concise. exactly like a medical report.
@@ -101,8 +87,12 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
         const analysisData = JSON.parse(cleanJson);
 
         if (email) {
-            const newAnalysis = new Analysis({ userId: email, ...analysisData });
-            await newAnalysis.save();
+            // Mongoose save() yerine Native insertOne()
+            await analysisCollection.insertOne({ 
+                userId: email, 
+                date: new Date(), 
+                ...analysisData 
+            });
         }
 
         res.json({ success: true, data: analysisData, isPremium: isPremium });
@@ -113,8 +103,7 @@ app.post('/analyze', upload.single('photo'), async (req, res) => {
     }
 });
 
-
-// --- 2. ANLIK MAKYAJ ANALİZİ (HARMONY & AVOID & MARKA YASAKLI) ---
+// --- 2. ANLIK MAKYAJ ANALİZİ (TÜM PROMPT KORUNDU) ---
 app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
     try {
         console.log("💄 Makyaj Analizi İsteği (No-Brand Modu)...");
@@ -123,7 +112,6 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
         const base64Image = req.file.buffer.toString('base64');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // PROMPT GÜNCELLENDİ: MARKA YASAK (NO BRANDS)
         let prompt = `
         You are a high-end celebrity makeup artist. Look at the user's face, lighting, and skin undertone in the photo.
         Create a cohesive makeup look RIGHT NOW.
@@ -135,22 +123,10 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
 
         Return ONLY valid JSON. Structure:
         {
-            "foundation": { 
-                "suggest": "Exact shade and finish", 
-                "avoid": "What to avoid" 
-            },
-            "blush": { 
-                "suggest": "Color and placement (must match lips)", 
-                "avoid": "Color/Texture to avoid" 
-            },
-            "eyes": { 
-                "suggest": "Eyeshadow colors and style", 
-                "avoid": "Style/Color to avoid" 
-            },
-            "lips": { 
-                "suggest": "Lipstick color and texture (must match blush)", 
-                "avoid": "Color to avoid" 
-            },
+            "foundation": { "suggest": "Exact shade and finish", "avoid": "What to avoid" },
+            "blush": { "suggest": "Color and placement (must match lips)", "avoid": "Color/Texture to avoid" },
+            "eyes": { "suggest": "Eyeshadow colors and style", "avoid": "Style/Color to avoid" },
+            "lips": { "suggest": "Lipstick color and texture (must match blush)", "avoid": "Color to avoid" },
             "vibe": "A very short name for this look (e.g. 'Clean Girl')"
         }
         `;
@@ -171,45 +147,32 @@ app.post('/analyze-makeup', upload.single('photo'), async (req, res) => {
     }
 });
 
+app.get('/', (req, res) => res.send('ERDN Server Active (Mongoose-Free)'));
 
-// --- STANDART ENDPOINTLER ---
-app.get('/', (req, res) => res.send('ERDN Server Active'));
-
-
-// --- REGISTER (CİHAZ KAYITLI) ---
+// --- REGISTER (ORİJİNAL MANTIK) ---
 app.post('/register', async (req, res) => {
     try {
-        // deviceId parametresini de alıyoruz
         const { fullName, email, password, country, gender, age, deviceId } = req.body;
-        
-        const existingUser = await User.findOne({ email });
+        const existingUser = await usersCollection.findOne({ email });
         if (existingUser) return res.status(400).json({ message: "Email already exists" });
         
-        // Yeni kullanıcıyı kaydederken Cihaz Kimliğini de yazıyoruz
-        const newUser = new User({ fullName, email, password, country, gender, age, deviceId });
-        await newUser.save();
-        
+        await usersCollection.insertOne({ 
+            fullName, email, password, country, gender, age, deviceId, isPremium: false 
+        });
         res.status(201).json({ message: "User created" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
-// --- LOGIN (TAHTA GEÇİŞ - UPDATE DEVICE ID) ---
+// --- LOGIN (ORİJİNAL MANTIK) ---
 app.post('/login', async (req, res) => {
     try {
-        // Giriş yapan cihazın ID'sini alıyoruz
         const { email, password, deviceId } = req.body;
-        
-        const user = await User.findOne({ email });
+        const user = await usersCollection.findOne({ email });
         if (!user || user.password !== password) return res.status(400).json({ message: "Invalid credentials" });
         
-        // ⭐ KRİTİK HAMLE: Yeni giren cihaz, artık "Aktif Cihaz" olur.
-        // Veritabanındaki deviceId güncellenir. Eski cihazın yetkisi düşer.
         if (deviceId) {
-            user.deviceId = deviceId;
-            await user.save();
+            await usersCollection.updateOne({ email }, { $set: { deviceId } });
         }
-
         res.json({ message: "Login successful", user: { email: user.email, fullName: user.fullName, isPremium: user.isPremium } });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
